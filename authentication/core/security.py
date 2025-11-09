@@ -1,12 +1,18 @@
-from datetime import timedelta, datetime, timezone
-from schemas.auth_schema import UserInfor
-from database.fake_db import db
-from core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRES, REFRESH_TOKEN_EXPIRES
+from datetime import datetime, timedelta, timezone
+
 import jwt
-from core.utils import verify_pw
-from schemas.auth_schema import TokenRes
-from jwt import ExpiredSignatureError,  InvalidSignatureError, exceptions
+from database.fake_db import db
 from fastapi import HTTPException
+from jwt import ExpiredSignatureError, InvalidSignatureError
+from schemas.auth_schema import UserInfor, UserRole
+
+from core.config import (
+    ACCESS_TOKEN_EXPIRES,
+    ALGORITHM,
+    REFRESH_TOKEN_EXPIRES,
+    SECRET_KEY,
+)
+from core.utils import verify_pw
 
 
 def authenticate_user(username, password) -> UserInfor|None: 
@@ -26,31 +32,43 @@ def create_token(user: UserInfor, token_type: str, expires_delta: timedelta | No
         #scope
         "id": user.id,
         "username": user.username,
-        "role": user.role.value,
+        "role": user.role,
         "iat": datetime.now(timezone.utc),
         "exp": exp
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm = [ALGORITHM])
+    return jwt.encode(to_encode, SECRET_KEY, algorithm = ALGORITHM)
 
 
 def get_payload(token: str) -> UserInfor | None:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithm = [ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail = 'Token expired')
     except InvalidSignatureError:
         raise HTTPException(status_code=401, detail="Invalid token signature")
-    except exceptions as e:
-        raise HTTPException(status_code=401, detail = "Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail = "Invalid token: " + str(e))
 # check blacklist
 def get_current_user(access_token: str) -> str:
     payload = get_payload(access_token)
-    username = payload['username']
+    username = payload.get('username')
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
     for u in db:
-        if u == username: return UserInfor(**db.get(u))
-    raise HTTPException(status_code=401, detail = "Invalid token")
+        if u == username: 
+            return UserInfor(**db.get(u))
+    raise HTTPException(status_code=401, detail = "User not found")
 
 def recreate_token(refresh_token: str)->str:
     payload = get_payload(refresh_token)
-    return create_token(UserInfor(**payload), 'access_token', timedelta(minutes=ACCESS_TOKEN_EXPIRES))
+    try:
+        role_enum = UserRole(role_str)
+    except ValueError:
+        raise HTTPException(status_code=401, detail=f"Invalid role: {role_str}")
+    user_data = {
+        'id': payload.id,
+        'username': payload.username,
+        'role': role_enum
+    }
+    return create_token(user=UserInfor(**user_data), token_type='access_token', expires_delta=timedelta(minutes=int(ACCESS_TOKEN_EXPIRES)))

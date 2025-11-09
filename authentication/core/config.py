@@ -1,9 +1,9 @@
 import os
+
 from dotenv import load_dotenv
 
 # Load file .env (tự động tìm file .env ở current working directory)
-dotenv_path = os.path.join(os.path.dirname(__file__), '.', '.env')
-load_dotenv(dotenv_path)
+load_dotenv()
 
 # Lấy giá trị secret
 SECRET_KEY = os.getenv('SECRET_KEY')
