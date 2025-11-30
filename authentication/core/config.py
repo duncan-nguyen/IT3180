@@ -22,3 +22,11 @@ if not REFRESH_TOKEN_EXPIRES:
 ALGORITHM = os.getenv('ALGORITHM')
 if not ALGORITHM:
     raise ValueError("ALGORITHM not found in .env file!")
+
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+if not SUPABASE_KEY:
+    raise ValueError("SUPABASE_KEY not found in .env file!")
+
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+if not SUPABASE_URL:
+    raise ValueError("SUPABASE_URL not found in .env file!")
