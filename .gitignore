@@ -1,0 +1,44 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.sqlite3
+
+# ===== Virtual environments =====
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# ===== Environment variables file =====
+.env
+
+# ===== FastAPI / Uvicorn logs =====
+*.log
+*.pid
+
+# ===== VSCode / IDEs =====
+.vscode/
+.idea/
+*.code-workspace
+
+# ===== OS files =====
+.DS_Store
+Thumbs.db
+
+# ===== Cache & temporary files =====
+*.tmp
+*.bak
+*.swp
+.cache/
+.mypy_cache/
+.pytest_cache/
+__pycache__/
+
+# ===== Build / distribution =====
+build/
+dist/
+*.egg-info/
