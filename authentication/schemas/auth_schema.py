@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 from typing import Optional
 class UserRole(Enum):
-    ADMIN = 'Admin'
+    ADMIN = 'Admin' #sua lai viet thuong
     TO_TRUONG = 'ToTruong'
     CAN_BO_PHUONG = 'CanBoPhuong'
     NGUOI_DAN = "NguoiDan"
@@ -43,3 +43,29 @@ class UserUpdateForm(BaseModel):
     
 class ResetPasswordForm(BaseModel):
     password: str
+
+
+class Action(Enum):
+    CREATE_CITIZEN = 'CREATE_CITIZEN'
+    UPDATE_CITIZEN = 'UPDATE_CITIZEN'
+    DELETE_CITIZEN = 'DELETE_CITIZEN'
+    LOCK = 'LOCK'
+    #MO RONG THEM
+
+class Entity(Enum):
+    Citizens = 'Citizens'
+    Users = 'Users'
+    Households: 'Households'
+    #MO RONG THEM
+class AuditLogForm(BaseModel):
+    user_id: UUID
+    action: str
+    entity_name: str
+    entity_id: UUID
+    before_state: dict
+    after_state: dict
+    
+class AuthRes(BaseModel):
+    id: UUID
+    scope_id: str
+    role: UserRole
