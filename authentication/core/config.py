@@ -30,3 +30,7 @@ if not SUPABASE_KEY:
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 if not SUPABASE_URL:
     raise ValueError("SUPABASE_URL not found in .env file!")
+
+INTERNAL_API_KEY = os.getenv('INTERNAL_API_KEY')
+if not SUPABASE_URL:
+    raise ValueError("INTERNAL_API_KEY not found in .env file!")
