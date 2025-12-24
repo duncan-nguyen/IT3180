@@ -1,16 +1,35 @@
-from supabase import AsyncClient, create_async_client
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from .config import settings
 
-class DBClient:
-    def __init__(self):
-        self.client: AsyncClient | None = None
+# engine = create_async_engine(settings.DATABASE_URL, echo=True)
 
-    async def get_client(self) -> AsyncClient:
-        if self.client is None:
-            self.client = await create_async_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-        return self.client
+# AsyncSessionLocal = async_sessionmaker(
+#     bind=engine,
+#     class_=AsyncSession,
+#     expire_on_commit=False,
+#     autoflush=False,
+# )
 
-db_client = DBClient()
+# async def get_db():
+#     async with AsyncSessionLocal() as session:
+#         yield session
 
-async def get_db() -> AsyncClient:
-    return await db_client.get_client()
+# Note: Ideally we reuse the same logic as Residents if we want consistency, 
+# but putting it here to keep service independent.
+
+class DbResponse:
+    def __init__(self, data, count=0):
+        self.data = data
+        self.count = count
+
+# Lazy initialization or direct
+engine = create_async_engine(settings.DATABASE_URL, echo=True)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session

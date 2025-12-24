@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://admin:password123@localhost:5432/citizen_management")
+
 
 settings = Settings()

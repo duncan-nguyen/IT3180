@@ -1,0 +1,21 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies (e.g. for psycopg2 if needed, though we use asyncpg)
+RUN apt-get update && apt-get install -y gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+
+# Install python dependencies
+# Merging dependencies from all services for the init script
+RUN pip install sqlalchemy asyncpg psycopg2-binary passlib[bcrypt] "bcrypt==3.2.2" python-jose
+
+# Copy service code
+COPY ./authentication /app/authentication
+COPY ./residents /app/residents
+COPY ./feedback /app/feedback
+COPY ./init_db.py /app/init_db.py
+
+# Set python path so imports work
+ENV PYTHONPATH=/app
+
+CMD ["python", "-m", "init_db"]

@@ -1,135 +1,188 @@
-from supabase import AsyncClient
 import datetime
 from datetime import timezone
-from app.schemas.common import Status, Category
-from app.schemas.feedback import FeedBack, FBResponse, MergedFB
+
+from models.feedback import Feedback, FeedbackResponse
+from schemas.common import Category, Status
+from schemas.feedback import FBResponse, FeedBack, MergedFB
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 
 async def get_feedbacks(
-    client: AsyncClient,
+    client: AsyncSession,
     trang_thai: Status | None = None,
     phan_loai: Category | None = None,
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
-    q: str | None = None
+    q: str | None = None,
 ):
-    query = client.table("feedbacks").select("*")
+    query = select(Feedback)
+
     if trang_thai:
-        query = query.eq("status", trang_thai)
+        query = query.filter(
+            Feedback.status == trang_thai.value
+            if hasattr(trang_thai, "value")
+            else trang_thai
+        )
     if phan_loai:
-        query = query.eq("category", phan_loai)
+        query = query.filter(
+            Feedback.category == phan_loai.value
+            if hasattr(phan_loai, "value")
+            else phan_loai
+        )
     if start_date:
-        query = query.gte("created_at", start_date.isoformat())
+        query = query.filter(Feedback.created_at >= start_date)
     if end_date:
         next_day = end_date + datetime.timedelta(days=1)
-        query = query.lte("updated_at", next_day.isoformat())
+        query = query.filter(Feedback.updated_at <= next_day)
     if q:
-        query = query.ilike("content", f"%{q}%")
-    response = await query.execute()
-    return response.data
+        query = query.filter(Feedback.content.ilike(f"%{q}%"))
 
-async def get_feedback_by_id(client: AsyncClient, feedback_id: str):
-    query = client.table("feedbacks").select("*, feedback_reporters(*), feedback_responses(*)")
-    query = query.eq("id", feedback_id).maybe_single()
-    response = await query.execute()
-    return response.data
+    result = await client.execute(query)
+    feedbacks = result.scalars().all()
+    return [f.as_dict() for f in feedbacks]
 
-async def update_feedback(client: AsyncClient, feedback: FeedBack, feedback_id: str):
-    status_value = feedback.trang_thai.value
-    data_to_update = {"status": status_value}
-    
-    await client.table("feedbacks") \
-        .update(data_to_update) \
-        .eq("id", feedback_id) \
-        .execute()
-    
-    response = await client.table("feedbacks") \
-        .select("*") \
-        .eq("id", feedback_id) \
-        .maybe_single() \
-        .execute()
-    return response.data
 
-async def create_feedback_response(client: AsyncClient, fbresponse: FBResponse, feedback_id: str):
-    feedback_query = await client.table("feedbacks") \
-        .select("created_by_user_id") \
-        .eq("id", feedback_id) \
-        .maybe_single() \
-        .execute()
+async def get_feedback_by_id(client: AsyncSession, feedback_id: str):
+    query = (
+        select(Feedback)
+        .options(selectinload(Feedback.responses))
+        .filter(Feedback.id == feedback_id)
+    )
+    result = await client.execute(query)
+    feedback = result.scalar_one_or_none()
 
-    created_by_user_id_q = feedback_query.data.get("created_by_user_id")
-    noi_dung_value = fbresponse.noi_dung
-    co_quan_value = fbresponse.co_quan
-    tep_dinh_kem_url_value = fbresponse.tep_dinh_kem_url
-    
-    await client.table("feedback_responses")\
-        .insert({
-            "content" : noi_dung_value, 
-            "agency" : co_quan_value, 
-            "attachment_url": tep_dinh_kem_url_value, 
-            "feedback_id" : feedback_id, 
-            "responded_at": datetime.datetime.now(timezone.utc).isoformat(),
-            "created_by_user_id" : created_by_user_id_q
-        }).execute()
-        
-    response = await client.table("feedback_responses")\
-        .select("*") \
-        .eq("feedback_id", feedback_id) \
-        .eq("content", noi_dung_value)\
-        .maybe_single()\
-        .execute()
-    return response.data
+    if not feedback:
+        return None
 
-async def merge_feedbacks(client: AsyncClient, merged_fb: MergedFB):
+    data = feedback.as_dict()
+    data["feedback_responses"] = [r.as_dict() for r in feedback.responses]
+    # feedback_reporters? If needed, add relation and load it.
+    # Current model didn't include reporters. If API needs it, we should add it.
+    # Assuming empty for now or handled elsewhere.
+    data["feedback_reporters"] = []
+    return data
+
+
+async def update_feedback(client: AsyncSession, feedback: FeedBack, feedback_id: str):
+    status_value = (
+        feedback.trang_thai.value
+        if hasattr(feedback.trang_thai, "value")
+        else feedback.trang_thai
+    )
+
+    stmt = (
+        update(Feedback).where(Feedback.id == feedback_id).values(status=status_value)
+    )
+    await client.execute(stmt)
+    await client.commit()
+
+    # Return updated
+    return await get_feedback_by_id(client, feedback_id)
+
+
+async def create_feedback_response(
+    client: AsyncSession, fbresponse: FBResponse, feedback_id: str
+):
+    # Get feedback to check creator? Original code: selected created_by_user_id
+    query = select(Feedback).filter(Feedback.id == feedback_id)
+    result = await client.execute(query)
+    feedback_obj = result.scalar_one_or_none()
+
+    if not feedback_obj:
+        return None
+
+    created_by_user_id = feedback_obj.created_by_user_id
+
+    response = FeedbackResponse(
+        content=fbresponse.noi_dung,
+        agency=fbresponse.co_quan,
+        attachment_url=fbresponse.tep_dinh_kem_url,
+        feedback_id=feedback_id,
+        responded_at=datetime.datetime.now(timezone.utc),
+        created_by_user_id=created_by_user_id,
+    )
+    client.add(response)
+    await client.commit()
+    await client.refresh(response)
+    return response.as_dict()
+
+
+async def create_new_feedback(client: AsyncSession, posted_fb, user_id: str):
+    """
+    Create a new feedback entry
+    """
+    category_value = (
+        posted_fb.phan_loai.value
+        if hasattr(posted_fb.phan_loai, "value")
+        else posted_fb.phan_loai
+    )
+
+    # Determine created_by_user_id and scope_id based on nguoi_phan_anh
+    created_by_user_id = user_id  # Use authenticated user ID
+    scope_id = None
+
+    if posted_fb.nguoi_phan_anh.nhankhau_id:
+        scope_id = posted_fb.nguoi_phan_anh.nhankhau_id
+
+    new_feedback = Feedback(
+        status=Status.moi_ghi_nhan.value,
+        category=category_value,
+        content=posted_fb.noi_dung,
+        scope_id=scope_id,
+        created_by_user_id=created_by_user_id,
+        report_count=1,
+        created_at=datetime.datetime.now(timezone.utc),
+        updated_at=datetime.datetime.now(timezone.utc),
+    )
+
+    client.add(new_feedback)
+    await client.commit()
+    await client.refresh(new_feedback)
+
+    return new_feedback.as_dict()
+
+
+async def merge_feedbacks(client: AsyncSession, merged_fb: MergedFB):
     sub_fb_id = merged_fb.sub_id[0]
-    sub_fb_table = await client.table("feedbacks") \
-        .select("category, scope_id, status, content, created_by_user_id") \
-        .eq("id", sub_fb_id) \
-        .maybe_single() \
-        .execute()
+    # Get details from first sub feedback logic
+    q = select(Feedback).filter(Feedback.id == sub_fb_id)
+    res = await client.execute(q)
+    sub_fb = res.scalar_one()
 
-    sub_fb_category = sub_fb_table.data.get("category")
-    sub_fb_scope = sub_fb_table.data.get("scope_id")
-    sub_fb_status = sub_fb_table.data.get("status")
-    sub_fb_content = sub_fb_table.data.get("content")
-    sub_fb_cbui = sub_fb_table.data.get("created_by_user_id")
+    # Calculate sum report_count
+    # In one query: select sum(report_count) where id in sub_id
+    q_sum = select(func.sum(Feedback.report_count)).filter(
+        Feedback.id.in_(merged_fb.sub_id)
+    )
+    sum_res = await client.execute(q_sum)
+    count = sum_res.scalar() or 0
 
-    count = 0
-    for i in merged_fb.sub_id:
-        fb_row = await client.table("feedbacks") \
-            .select("report_count") \
-            .eq("id", i) \
-            .maybe_single() \
-            .execute()
-        count += fb_row.data.get("report_count", 0)
+    parent_id = merged_fb.parent_id
 
-    if merged_fb.parent_id is None:
-        new_parent_fb = await client.table("feedbacks").insert({
-            "category": sub_fb_category,
-            "scope_id": sub_fb_scope,
-            "status": sub_fb_status,
-            "content": sub_fb_content,
-            "report_count": count,
-            "created_by_user_id": sub_fb_cbui,
-            "created_at": datetime.datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.datetime.now(timezone.utc).isoformat()
-        }).execute()
+    if parent_id is None:
+        new_parent = Feedback(
+            category=sub_fb.category,
+            scope_id=sub_fb.scope_id,
+            status=sub_fb.status,
+            content=sub_fb.content,
+            report_count=count,
+            created_by_user_id=sub_fb.created_by_user_id,
+            created_at=datetime.datetime.now(timezone.utc),
+            updated_at=datetime.datetime.now(timezone.utc),
+        )
+        client.add(new_parent)
+        await client.flush()  # get ID
+        parent_id = new_parent.id
 
-        parent_id = new_parent_fb.data[0]["id"]
-    else:
-        parent_id = merged_fb.parent_id
+    # Update sub feedbacks
+    stmt = (
+        update(Feedback)
+        .where(Feedback.id.in_(merged_fb.sub_id))
+        .values(parent_id=parent_id)
+    )
+    await client.execute(stmt)
+    await client.commit()
 
-    for sub_id in merged_fb.sub_id:
-        await client.table("feedbacks") \
-            .update({"parent_id": parent_id}) \
-            .eq("id", sub_id) \
-            .execute()
-            
-    if merged_fb.parent_id is None:
-        return new_parent_fb.data[0]
-    else:
-        parent_fb = await client.table("feedbacks") \
-            .select("*") \
-            .eq("id", parent_id) \
-            .maybe_single() \
-            .execute()
-        return parent_fb.data
+    return await get_feedback_by_id(client, str(parent_id))
