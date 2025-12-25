@@ -1,7 +1,7 @@
 import { Eye } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getFeedbackList, type Category, type Status } from '../api_caller/port8019';
+import { getFeedbackList, type Category, type Status } from '../../api_caller/port8019';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

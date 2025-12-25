@@ -75,6 +75,8 @@ export const validateAuth = async (data: ValidateRequest): Promise<AuthRes> => {
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[validateAuth] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -84,23 +86,31 @@ export const validateAuth = async (data: ValidateRequest): Promise<AuthRes> => {
  * Login for access token
  * POST /api/v1/auth/login
  */
-export const login = async (username: string, password: string): Promise<LoginRes> => {
-  const formData = new URLSearchParams();
-  formData.append('username', username);
-  formData.append('password', password);
+export const login = async (
+  username: string,
+  password: string
+): Promise<LoginRes> => {
+  const body = `grant_type=&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&scope=&client_id=&client_secret=`;
 
   const response = await fetch(`${BASE_URL}/api/v1/auth/login`, {
     method: 'POST',
     headers: {
+      'accept': 'application/json',
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: formData,
+    body: body,
   });
+
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[login] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
+
   return response.json();
 };
+
+
 
 /**
  * Get current user information
@@ -112,6 +122,8 @@ export const getMe = async (token: string): Promise<UserInfor> => {
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getMe] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -127,6 +139,8 @@ export const getUsers = async (token: string): Promise<UserInfor[]> => {
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getUsers] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -143,6 +157,8 @@ export const createUser = async (token: string, user: UserCreateForm): Promise<v
     body: JSON.stringify({ user }),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[createUser] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -159,6 +175,8 @@ export const updateUser = async (token: string, id: string, updateData: UserUpda
     body: JSON.stringify({ update_data: updateData }),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[updateUser] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -175,6 +193,8 @@ export const resetPassword = async (token: string, id: string, password: ResetPa
     body: JSON.stringify({ password }),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[resetPassword] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -191,6 +211,8 @@ export const refreshToken = async (refreshTokenData: RefreshTokenRequest): Promi
     body: JSON.stringify({ refresh_token: refreshTokenData }),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[refreshToken] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -206,6 +228,8 @@ export const deleteUser = async (token: string, id: string): Promise<void> => {
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[deleteUser] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -221,6 +245,8 @@ export const lockUser = async (token: string, id: string): Promise<void> => {
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[lockUser] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -236,6 +262,8 @@ export const unlockUser = async (token: string, id: string): Promise<void> => {
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[unlockUser] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();

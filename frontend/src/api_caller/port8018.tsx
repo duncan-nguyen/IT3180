@@ -87,6 +87,8 @@ export const searchResidents = async (token: string, q: string): Promise<any> =>
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[searchResidents] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -110,6 +112,8 @@ export const countResidents = async (token: string, params?: CountParams): Promi
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[countResidents] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -126,6 +130,8 @@ export const createResident = async (token: string, data: NhankhauCreate): Promi
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[createResident] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -141,6 +147,8 @@ export const getResidentById = async (token: string, id: string): Promise<any> =
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getResidentById] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -157,6 +165,8 @@ export const updateResident = async (token: string, id: string, data: NhankhauUp
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[updateResident] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -172,6 +182,8 @@ export const deleteResident = async (token: string, id: string): Promise<any> =>
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[deleteResident] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -189,6 +201,8 @@ export const getResidentMovementLogs = async (id: string): Promise<any> => {
     },
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getResidentMovementLogs] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -214,6 +228,8 @@ export const countHouseholds = async (token: string, params?: CountParams): Prom
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[countHouseholds] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -239,6 +255,8 @@ export const getHouseholdList = async (token: string, params?: HouseholdListPara
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getHouseholdList] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -255,6 +273,8 @@ export const createHousehold = async (token: string, data: HokhauCreate): Promis
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[createHousehold] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -270,6 +290,8 @@ export const getHouseholdById = async (token: string, id: string): Promise<any> 
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getHouseholdById] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -286,6 +308,8 @@ export const updateHousehold = async (token: string, id: string, data: HokhauUpd
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[updateHousehold] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -301,6 +325,8 @@ export const deleteHousehold = async (token: string, id: string): Promise<any> =
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[deleteHousehold] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -315,6 +341,8 @@ export const healthCheck = async (): Promise<any> => {
     method: 'GET',
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[healthCheck] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();

@@ -87,6 +87,8 @@ export const getFeedbackList = async (token: string, params?: FeedbackListParams
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getFeedbackList] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -103,6 +105,8 @@ export const createFeedback = async (token: string, data: PostedFB): Promise<any
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[createFeedback] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -118,6 +122,8 @@ export const getFeedbackById = async (token: string, feedbackId: string): Promis
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getFeedbackById] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -134,6 +140,8 @@ export const updateFeedback = async (token: string, feedbackId: string, data: Fe
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[updateFeedback] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -150,6 +158,8 @@ export const createFeedbackResponse = async (token: string, feedbackId: string, 
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[createFeedbackResponse] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -166,6 +176,8 @@ export const mergeFeedback = async (token: string, data: MergedFB): Promise<any>
     body: JSON.stringify(data),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[mergeFeedback] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -188,6 +200,8 @@ export const getAmountFbByStatus = async (token: string, params: ReportByStatusP
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getAmountFbByStatus] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -211,6 +225,8 @@ export const getReports = async (token: string, params?: ReportsParams): Promise
     headers: getAuthHeaders(token),
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[getReports] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -225,6 +241,8 @@ export const healthCheck = async (): Promise<any> => {
     method: 'GET',
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[healthCheck] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();
@@ -239,6 +257,8 @@ export const testAuth = async (): Promise<any> => {
     method: 'GET',
   });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[testAuth] HTTP error! status: ${response.status}`, errorText);
     throw new Error(`HTTP error! status: ${response.status}`);
   }
   return response.json();

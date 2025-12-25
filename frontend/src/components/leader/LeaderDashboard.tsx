@@ -1,7 +1,7 @@
 import { MessageSquare, UserCircle, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { countHouseholds, countResidents } from '../api_caller/port8018';
-import { getFeedbackList } from '../api_caller/port8019';
+import { countHouseholds, countResidents } from '../../api_caller/port8018';
+import { getFeedbackList } from '../../api_caller/port8019';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
