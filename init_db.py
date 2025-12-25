@@ -210,6 +210,7 @@ async def init_db():
             household = result.scalar_one_or_none()
 
             household_id = uuid.uuid4()
+            father_id = uuid.uuid4()
 
             if not household:
                 print("Seeding household...")
@@ -231,7 +232,6 @@ async def init_db():
                 print("Seeding citizens...")
 
                 # BƯỚC 2: Tạo Công dân
-                father_id = uuid.uuid4()
                 father = Citizen(
                     id=father_id,
                     household_id=household_id,  # Link tới hộ khẩu đã flush ở trên
@@ -290,6 +290,15 @@ async def init_db():
 
             else:
                 print("Household already exists (skipping citizen seed).")
+                # Get existing father citizen ID for feedback seeding
+                stmt = select(Citizen).where(
+                    Citizen.household_id == household.id,
+                    Citizen.relationship_to_head == "Chủ hộ",
+                )
+                result = await session.execute(stmt)
+                father = result.scalar_one_or_none()
+                if father:
+                    father_id = father.id
 
             # --- SEED FEEDBACK (Phản ánh) ---
             # Kiểm tra xem đã có phản ánh nào chưa
@@ -306,7 +315,7 @@ async def init_db():
                     category="Môi trường",
                     content="Có bãi rác tự phát tại ngõ 15, mùi hôi thối ảnh hưởng người dân.",
                     scope_id="0001",
-                    created_by_user_id=user_citizen_id,
+                    created_by_user_id=father_id,
                     created_at=datetime.utcnow(),
                 )
                 session.add(feedback)
