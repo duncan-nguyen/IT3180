@@ -22,9 +22,30 @@ const createClient = (baseURL: string) => {
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
+            const userStr = localStorage.getItem('user');
+            console.log('[API Debug] userStr from localStorage:', userStr);
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    console.log('[API Debug] Parsed user:', user);
+                    if (user.username) {
+                        config.headers['X-Username'] = user.username;
+                    } else {
+                        console.warn('[API Debug] User object has no username property');
+                    }
+                } catch (e) {
+                    console.error('[API Debug] Failed to parse user from localStorage:', e);
+                }
+            } else {
+                console.warn('[API Debug] No user found in localStorage');
+            }
+            // Final debug logging
+            console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.headers['X-Username'] ? `with user: ${config.headers['X-Username']}` : 'NO USER');
+
             return config;
         },
         (error) => {
+            console.error('Request interceptor error:', error);
             return Promise.reject(error);
         }
     );

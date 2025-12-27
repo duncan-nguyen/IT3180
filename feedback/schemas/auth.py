@@ -1,7 +1,7 @@
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class UserRole(Enum):
@@ -14,7 +14,7 @@ class UserRole(Enum):
 class UserInfor(BaseModel):
     id: UUID
     role: UserRole
-    username: str = Field(min_length=5, max_length=25)
+    username: str
     scope_id: str
     active: bool
 
@@ -26,3 +26,6 @@ class AuthRes(BaseModel):
     id: UUID
     scope_id: str
     role: UserRole
+
+    class Config:
+        use_enum_values = True

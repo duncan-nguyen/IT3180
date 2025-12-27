@@ -1,11 +1,14 @@
-import AdminLayout from './AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { AlertCircle, ArrowLeft, CheckCircle2, Save, Search, UserPlus } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../../services/auth-service';
+import { Resident, residentsService } from '../../services/residents-service';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowLeft, Save, UserPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import AdminLayout from './AdminLayout';
 
 interface AdminAccountCreateProps {
   onLogout: () => void;
@@ -13,6 +16,133 @@ interface AdminAccountCreateProps {
 
 export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps) {
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    fullname: '',
+    email: '',
+    phone: '',
+    cccd: '',
+    role: '',
+    area: '',
+    password: '',
+    confirmPassword: '',
+    address: ''
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [residentFound, setResidentFound] = useState<Resident | null>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleRoleChange = (value: string) => {
+    setFormData(prev => ({ ...prev, role: value }));
+    setResidentFound(null);
+    setFormData(prev => ({ ...prev, fullname: '', address: '', cccd: '' }));
+  };
+
+  const handleAreaChange = (value: string) => {
+    setFormData(prev => ({ ...prev, area: value }));
+  };
+
+  const handleSearchResident = async () => {
+    if (!formData.cccd) return;
+    setSearchLoading(true);
+    setError('');
+    setResidentFound(null);
+
+    try {
+      const results = await residentsService.search(formData.cccd);
+      // Filter strictly by CCCD as search might be fuzzy
+      const match = results.find(r => r.cccd_number === formData.cccd);
+
+      if (match) {
+        setResidentFound(match);
+        setFormData(prev => ({
+          ...prev,
+          fullname: match.full_name,
+          address: match.household?.address || ''
+        }));
+      } else {
+        setError('Không tìm thấy nhân khẩu với số CCCD này.');
+      }
+    } catch (err: any) {
+      setError('Lỗi khi tìm kiếm nhân khẩu: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+    setSuccess('');
+
+    // Validation
+    if (!formData.fullname || !formData.email || !formData.password || !formData.role) {
+      setError('Vui lòng điền đầy đủ các thông tin bắt buộc (*).');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
+    if (formData.role === 'citizen') {
+      if (!residentFound) {
+        setError('Đối với tài khoản Người dân, vui lòng nhập số CCCD và tìm kiếm nhân khẩu trước.');
+        return;
+      }
+    }
+
+    if (formData.role === 'leader' && !formData.area) {
+      setError('Đối với tài khoản Tổ trưởng, vui lòng chọn Tổ dân phố.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      let scopeId = '';
+      if (formData.role === 'citizen') {
+        scopeId = residentFound!.id;
+      } else if (formData.role === 'leader') {
+        scopeId = formData.area;
+      }
+
+      // Map frontend role to backend Enum
+      const roleMapping: Record<string, string> = {
+        'admin': 'admin',
+        'citizen': 'nguoi_dan',
+        'leader': 'to_truong',
+        'official': 'can_bo_phuong'
+      };
+      const backendRole = roleMapping[formData.role] || formData.role;
+
+      await authService.createUser({
+        username: formData.email, // Using email as username per plan
+        password: formData.password,
+        role: backendRole,
+        scope_id: scopeId
+      });
+
+      setSuccess('Tạo tài khoản thành công!');
+      // Reset form or navigate away
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1500);
+
+    } catch (err: any) {
+      console.error(err);
+      setError('Tạo tài khoản thất bại: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AdminLayout onLogout={onLogout}>
@@ -21,7 +151,7 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
         <div className="mb-8">
           <Button
             variant="outline"
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/admin/accounts')}
             className="h-12 mb-4 border-2 border-[#212121]/20"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
@@ -50,55 +180,20 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="fullname" className="text-[#212121]">
-                      Họ và Tên <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Input
-                      id="fullname"
-                      placeholder="Nguyễn Văn A"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                  </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="email" className="text-[#212121]">
-                      Email <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="nguyenvana@example.com"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
+                {/* Messages */}
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    {error}
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="phone" className="text-[#212121]">
-                      Số điện thoại <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Input
-                      id="phone"
-                      placeholder="0912345678"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
+                )}
+                {success && (
+                  <div className="p-4 bg-green-50 text-green-600 rounded-lg flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    {success}
                   </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="cccd" className="text-[#212121]">
-                      Số CCCD
-                    </Label>
-                    <Input
-                      id="cccd"
-                      placeholder="001234567890"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                  </div>
-                </div>
+                )}
 
                 {/* Role and Location */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -106,7 +201,7 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                     <Label htmlFor="role" className="text-[#212121]">
                       Vai trò <span className="text-[#B71C1C]">*</span>
                     </Label>
-                    <Select>
+                    <Select value={formData.role} onValueChange={handleRoleChange}>
                       <SelectTrigger id="role" className="h-12 border-2 border-[#212121]/20">
                         <SelectValue placeholder="Chọn vai trò" />
                       </SelectTrigger>
@@ -123,20 +218,109 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                     <Label htmlFor="area" className="text-[#212121]">
                       Tổ dân phố (nếu là Tổ trưởng)
                     </Label>
-                    <Select>
+                    <Select
+                      value={formData.area}
+                      onValueChange={handleAreaChange}
+                      disabled={formData.role !== 'leader'}
+                    >
                       <SelectTrigger id="area" className="h-12 border-2 border-[#212121]/20">
                         <SelectValue placeholder="Chọn tổ" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">Tổ 1</SelectItem>
-                        <SelectItem value="2">Tổ 2</SelectItem>
-                        <SelectItem value="3">Tổ 3</SelectItem>
-                        <SelectItem value="4">Tổ 4</SelectItem>
-                        <SelectItem value="5">Tổ 5</SelectItem>
-                        <SelectItem value="6">Tổ 6</SelectItem>
-                        <SelectItem value="7">Tổ 7</SelectItem>
+                        {[1, 2, 3, 4, 5, 6, 7].map(num => (
+                          <SelectItem key={num} value={num.toString()}>Tổ {num}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* CCCD Search for Citizen */}
+                {formData.role === 'citizen' && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <Label className="text-[#0D47A1] mb-2 block">Tìm kiếm công dân (Bắt buộc cho tài khoản Người dân)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cccd"
+                        placeholder="Nhập số CCCD"
+                        className="h-12 border-2 border-[#0D47A1]/20 flex-1"
+                        value={formData.cccd}
+                        onChange={handleInputChange}
+                      />
+                      <Button
+                        onClick={handleSearchResident}
+                        disabled={searchLoading || !formData.cccd}
+                        className="h-12 bg-[#0D47A1] hover:bg-[#0D47A1]/90"
+                      >
+                        {searchLoading ? 'Đang tìm...' : <Search className="w-5 h-5" />}
+                      </Button>
+                    </div>
+                    {residentFound && (
+                      <div className="mt-2 text-green-600 flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Đã tìm thấy: {residentFound.full_name}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="fullname" className="text-[#212121]">
+                      Họ và Tên <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Input
+                      id="fullname"
+                      placeholder="Nguyễn Văn A"
+                      className="h-12 border-2 border-[#212121]/20"
+                      value={formData.fullname}
+                      onChange={handleInputChange}
+                      readOnly={formData.role === 'citizen' && !!residentFound} // Read only if linked
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="email" className="text-[#212121]">
+                      Email (Tên đăng nhập) <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="nguyenvana@example.com"
+                      className="h-12 border-2 border-[#212121]/20"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="phone" className="text-[#212121]">
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phone"
+                      placeholder="0912345678"
+                      className="h-12 border-2 border-[#212121]/20"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="cccd_display" className="text-[#212121]">
+                      Số CCCD
+                    </Label>
+                    <Input
+                      id="cccd_display"
+                      placeholder="001234567890"
+                      className="h-12 border-2 border-[#212121]/20"
+                      value={formData.cccd}
+                      onChange={(e) => setFormData(p => ({ ...p, cccd: e.target.value }))} // Update cccd manually for non-citizen roles
+                      readOnly={formData.role === 'citizen'} // Citizen uses the search field above
+                    />
                   </div>
                 </div>
 
@@ -151,18 +335,22 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                       type="password"
                       placeholder="Tối thiểu 8 ký tự"
                       className="h-12 border-2 border-[#212121]/20"
+                      value={formData.password}
+                      onChange={handleInputChange}
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="confirm-password" className="text-[#212121]">
+                    <Label htmlFor="confirmPassword" className="text-[#212121]">
                       Xác nhận Mật khẩu <span className="text-[#B71C1C]">*</span>
                     </Label>
                     <Input
-                      id="confirm-password"
+                      id="confirmPassword"
                       type="password"
                       placeholder="Nhập lại mật khẩu"
                       className="h-12 border-2 border-[#212121]/20"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
                     />
                   </div>
                 </div>
@@ -176,6 +364,8 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                     id="address"
                     placeholder="15 Nguyễn Lương Bằng, Phường Đống Đa"
                     className="h-12 border-2 border-[#212121]/20"
+                    value={formData.address}
+                    onChange={handleInputChange}
                   />
                 </div>
               </CardContent>
@@ -192,13 +382,17 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90">
+                <Button
+                  className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
                   <Save className="w-5 h-5 mr-2" />
-                  Tạo Tài khoản
+                  {loading ? 'Đang tạo...' : 'Tạo Tài khoản'}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/admin')}
+                  onClick={() => navigate('/admin/accounts')}
                   className="w-full h-14 border-2 border-[#212121]/20"
                 >
                   Hủy
@@ -217,19 +411,15 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                 <ul className="space-y-3 text-[#212121]">
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Các trường đánh dấu (*) là bắt buộc</span>
+                    <span>Đối với <strong>Người dân</strong>, bạn phải nhập số CCCD để liên kết với dữ liệu nhân khẩu có sẵn.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Mật khẩu phải có tối thiểu 8 ký tự</span>
+                    <span>Email sẽ được sử dụng làm <strong>Tên đăng nhập</strong>.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Email sẽ được sử dụng để đăng nhập</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Người dùng sẽ nhận email thông báo sau khi tạo tài khoản</span>
+                    <span>Mật khẩu phải có tối thiểu 8 ký tự.</span>
                   </li>
                 </ul>
               </CardContent>

@@ -28,7 +28,12 @@ export const authService = {
 
         if (response.data.access_token) {
             localStorage.setItem('token', response.data.access_token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
+            // Ensure username is included in the stored user object
+            const userToStore = {
+                ...response.data.user,
+                username: response.data.user.username || username // Fallback to input username
+            };
+            localStorage.setItem('user', JSON.stringify(userToStore));
         }
 
         return response.data;
@@ -47,5 +52,11 @@ export const authService = {
 
     getToken() {
         return localStorage.getItem('token');
+    },
+
+    async createUser(data: any) {
+        const response = await authClient.post('/users', { user: data });
+        return response.data;
     }
 };
+

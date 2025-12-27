@@ -24,3 +24,5 @@ class AuditLog(Base):
     before_state = Column(JSON)
     after_state = Column(JSON)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)

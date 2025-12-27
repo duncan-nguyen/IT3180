@@ -34,12 +34,12 @@ async def get_feedback_list(
     ),
 ):
     logger.info(
-        f"GET /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Filters: status={status}, category={category}, q={q}"
+        f"GET /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Filters: status={status}, category={category}, q={q}"
     )
 
     # Filter by user_id if user is a Citizen
     filter_user_id = None
-    if user_data.role == UserRole.NGUOI_DAN:
+    if user_data.role == UserRole.NGUOI_DAN.value:
         filter_user_id = str(user_data.id)
 
     feedback = await crud_feedback.get_feedbacks(
@@ -74,7 +74,7 @@ async def get_feedback_by_id(
     ),
 ):
     logger.info(
-        f"GET /feedback/{feedback_id} - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}"
+        f"GET /feedback/{feedback_id} - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}"
     )
     feedback = await crud_feedback.get_feedback_by_id(
         client=db, feedback_id=feedback_id
@@ -95,7 +95,7 @@ async def update_feedback(
     ),
 ):
     logger.info(
-        f"PUT /feedback/{feedback_id} - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, New status: {feedback.trang_thai.value}"
+        f"PUT /feedback/{feedback_id} - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, New status: {feedback.trang_thai.value}"
     )
     data = await crud_feedback.update_feedback(
         client=db, feedback=feedback, feedback_id=feedback_id
@@ -114,7 +114,7 @@ async def create_fb_response(
     ),
 ):
     logger.info(
-        f"POST /feedback/{feedback_id}/response - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Agency: {fbresponse.co_quan}"
+        f"POST /feedback/{feedback_id}/response - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Agency: {fbresponse.co_quan}"
     )
     data = await crud_feedback.create_feedback_response(
         client=db, fbresponse=fbresponse, feedback_id=feedback_id
@@ -134,7 +134,7 @@ async def merge_feedback(
     ),
 ):
     logger.info(
-        f"POST /feedback/merge - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Parent ID: {merged_fb.parent_id}, Sub IDs: {merged_fb.sub_id}"
+        f"POST /feedback/merge - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Parent ID: {merged_fb.parent_id}, Sub IDs: {merged_fb.sub_id}"
     )
     data = await crud_feedback.merge_feedbacks(client=db, merged_fb=merged_fb)
     logger.info("POST /feedback/merge - Feedbacks merged successfully")
@@ -157,10 +157,10 @@ async def create_new_fb(
     ),
 ):
     logger.info(
-        f"POST /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Category: {posted_fb.phan_loai.value}, Resident ID: {posted_fb.nguoi_phan_anh.nhankhau_id}"
+        f"POST /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Category: {posted_fb.phan_loai.value}, Resident ID: {posted_fb.nguoi_phan_anh.nhankhau_id}"
     )
     data = await crud_feedback.create_new_feedback(
-        client=db, posted_fb=posted_fb, user_id=str(user_data.user_id)
+        client=db, posted_fb=posted_fb, user_id=str(user_data.id)
     )
     logger.info(f"POST /feedback - New feedback created with ID: {data.get('id')}")
     return data

@@ -30,8 +30,9 @@ async def get_amount_fb_by_status(
     ),
 ):
     logger.info(
-        f"GET /reports/kiennghi-theo-trangthai - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Quarter: {quy.value}, Year: {nam}, Format: {format.value}"
+        f"GET /reports/kiennghi-theo-trangthai - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Quarter: {quy.value}, Year: {nam}, Format: {format.value}"
     )
+
     data = await crud_report.get_report_by_quarter(client=db, quy=quy, nam=nam)
 
     if format == Format.json:
@@ -77,7 +78,7 @@ async def get_reports(
     ),
 ):
     logger.info(
-        f"GET /reports - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Quarter: {quy}, Year: {nam}"
+        f"GET /reports - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role}, Quarter: {quy}, Year: {nam}"
     )
     if quy and nam:
         data = await crud_report.get_report_by_quarter(client=db, quy=quy, nam=nam)

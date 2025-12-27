@@ -57,7 +57,9 @@ async def auth_check(request_data: ValidateRequest, db: AsyncSession = Depends(g
             detail="Username mismatch: provided username does not match token",
         )
 
-    return AuthRes(role=user.role, id=user.id, scope_id=user.scope_id)
+    return AuthRes(
+        role=user.role, id=user.id, scope_id=str(user.scope_id) if user.scope_id else ""
+    )
 
 
 async def exist_user_checking(id: str, db: AsyncSession):

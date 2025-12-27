@@ -8,7 +8,7 @@ class FeedBack(BaseModel):
 class FBResponse(BaseModel):
     noi_dung : str
     co_quan : str
-    tep_dinh_kem_url: str
+    tep_dinh_kem_url: str | None = None
 
 class MergedFB(BaseModel):
     parent_id : str | None = None
