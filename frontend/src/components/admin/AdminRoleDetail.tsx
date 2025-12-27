@@ -1,74 +1,88 @@
-import AdminLayout from './AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Switch } from '../ui/switch';
-import { ArrowLeft, Save, Shield, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Shield, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { RoleDetail, rolesService } from '../../services/roles-service';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Switch } from '../ui/switch';
+import AdminLayout from './AdminLayout';
 
 interface AdminRoleDetailProps {
   onLogout: () => void;
 }
 
-const permissions = [
-  {
-    category: 'Quản lý Hộ khẩu',
-    items: [
-      { id: 'view_households', name: 'Xem danh sách hộ khẩu', enabled: true },
-      { id: 'create_household', name: 'Thêm hộ khẩu mới', enabled: true },
-      { id: 'edit_household', name: 'Sửa thông tin hộ khẩu', enabled: true },
-      { id: 'delete_household', name: 'Xóa hộ khẩu', enabled: false },
-    ],
-  },
-  {
-    category: 'Quản lý Nhân khẩu',
-    items: [
-      { id: 'view_residents', name: 'Xem danh sách nhân khẩu', enabled: true },
-      { id: 'create_resident', name: 'Thêm nhân khẩu mới', enabled: true },
-      { id: 'edit_resident', name: 'Sửa thông tin nhân khẩu', enabled: true },
-      { id: 'delete_resident', name: 'Xóa nhân khẩu', enabled: false },
-    ],
-  },
-  {
-    category: 'Quản lý Kiến nghị',
-    items: [
-      { id: 'view_feedback', name: 'Xem kiến nghị', enabled: true },
-      { id: 'create_feedback', name: 'Gửi kiến nghị', enabled: true },
-      { id: 'forward_feedback', name: 'Chuyển tiếp kiến nghị', enabled: true },
-      { id: 'respond_feedback', name: 'Phản hồi kiến nghị', enabled: false },
-      { id: 'close_feedback', name: 'Đóng kiến nghị', enabled: false },
-    ],
-  },
-  {
-    category: 'Báo cáo & Thống kê',
-    items: [
-      { id: 'view_reports', name: 'Xem báo cáo', enabled: true },
-      { id: 'export_reports', name: 'Xuất báo cáo', enabled: true },
-      { id: 'view_analytics', name: 'Xem phân tích dữ liệu', enabled: false },
-    ],
-  },
-  {
-    category: 'Quản trị Hệ thống',
-    items: [
-      { id: 'manage_users', name: 'Quản lý tài khoản', enabled: false },
-      { id: 'manage_roles', name: 'Quản lý vai trò', enabled: false },
-      { id: 'system_settings', name: 'Cấu hình hệ thống', enabled: false },
-      { id: 'view_logs', name: 'Xem nhật ký', enabled: false },
-    ],
-  },
-];
-
 export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const [roleDetail, setRoleDetail] = useState<RoleDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const roleInfo = {
-    name: 'Tổ trưởng',
-    code: 'LEADER',
-    userCount: 7,
-    color: '#1B5E20',
-    description: 'Quản lý hộ khẩu, nhân khẩu và kiến nghị trong phạm vi tổ dân phố',
+  useEffect(() => {
+    if (id) {
+      loadRoleDetail();
+    }
+  }, [id]);
+
+  const loadRoleDetail = async () => {
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await rolesService.getRoleDetail(id);
+      setRoleDetail(data);
+    } catch (err) {
+      setError('Không thể tải thông tin vai trò. Vui lòng thử lại.');
+      console.error('Error loading role detail:', err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <AdminLayout onLogout={onLogout}>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error || !roleDetail) {
+    return (
+      <AdminLayout onLogout={onLogout}>
+        <div className="p-6">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/admin/roles')}
+            className="h-12 mb-4 border-2 border-[#212121]/20"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Quay lại
+          </Button>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+            {error || 'Không tìm thấy vai trò'}
+          </div>
+          <Button onClick={loadRoleDetail} className="mt-4">
+            Thử lại
+          </Button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const totalPermissions = roleDetail.permissions.reduce(
+    (sum, category) => sum + category.items.length,
+    0
+  );
+  const enabledPermissions = roleDetail.permissions.reduce(
+    (sum, category) => sum + category.items.filter(p => p.enabled).length,
+    0
+  );
+  const disabledPermissions = totalPermissions - enabledPermissions;
 
   return (
     <AdminLayout onLogout={onLogout}>
@@ -86,17 +100,17 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-[#212121] mb-3">
-                Chi tiết Vai trò: {roleInfo.name}
+                Chi tiết Vai trò: {roleDetail.name}
               </h1>
               <p className="text-[#212121]">
-                {roleInfo.description}
+                {roleDetail.description}
               </p>
             </div>
             <Badge
               variant="outline"
               className="h-10 px-4 border-2 text-[#212121]"
             >
-              {roleInfo.code}
+              {roleDetail.code}
             </Badge>
           </div>
         </div>
@@ -104,7 +118,7 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Permissions List */}
           <div className="lg:col-span-2 space-y-6">
-            {permissions.map((category, index) => (
+            {roleDetail.permissions.map((category, index) => (
               <Card key={index} className="border-2 border-[#212121]/10 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-[#212121]">
@@ -122,7 +136,7 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                           {permission.name}
                         </p>
                       </div>
-                      <Switch defaultChecked={permission.enabled} />
+                      <Switch defaultChecked={permission.enabled} disabled />
                     </div>
                   ))}
                 </CardContent>
@@ -138,9 +152,9 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                 <div className="flex items-center gap-3">
                   <div
                     className="p-3 rounded-lg"
-                    style={{ backgroundColor: `${roleInfo.color}20` }}
+                    style={{ backgroundColor: `${roleDetail.color}20` }}
                   >
-                    <Shield className="w-6 h-6" style={{ color: roleInfo.color }} />
+                    <Shield className="w-6 h-6" style={{ color: roleDetail.color }} />
                   </div>
                   <CardTitle className="text-[#212121]">
                     Thông tin Vai trò
@@ -151,14 +165,14 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                 <div className="p-4 bg-[#F5F5F5] rounded-lg">
                   <p className="text-sm text-[#212121] mb-1">Tên vai trò</p>
                   <p className="text-[#212121]">
-                    {roleInfo.name}
+                    {roleDetail.name}
                   </p>
                 </div>
 
                 <div className="p-4 bg-[#F5F5F5] rounded-lg">
                   <p className="text-sm text-[#212121] mb-1">Mã vai trò</p>
                   <p className="text-[#212121]">
-                    {roleInfo.code}
+                    {roleDetail.code}
                   </p>
                 </div>
 
@@ -167,7 +181,7 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                   <div>
                     <p className="text-sm text-[#212121]">Số người dùng</p>
                     <p className="text-xl text-[#212121]">
-                      {roleInfo.userCount} tài khoản
+                      {roleDetail.user_count} tài khoản
                     </p>
                   </div>
                 </div>
@@ -182,7 +196,10 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90">
+                <Button
+                  className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                  disabled
+                >
                   <Save className="w-5 h-5 mr-2" />
                   Lưu Quyền hạn
                 </Button>
@@ -192,7 +209,7 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
                   onClick={() => navigate('/admin/roles')}
                   className="w-full h-14 border-2 border-[#212121]/20"
                 >
-                  Hủy
+                  Quay lại
                 </Button>
               </CardContent>
             </Card>
@@ -207,15 +224,15 @@ export default function AdminRoleDetail({ onLogout }: AdminRoleDetailProps) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between p-3 bg-white rounded-lg">
                   <span className="text-[#212121]">Tổng quyền:</span>
-                  <span className="text-[#212121]">20</span>
+                  <span className="text-[#212121]">{totalPermissions}</span>
                 </div>
                 <div className="flex justify-between p-3 bg-white rounded-lg">
                   <span className="text-[#212121]">Đã bật:</span>
-                  <span className="text-[#1B5E20]">11</span>
+                  <span className="text-[#1B5E20]">{enabledPermissions}</span>
                 </div>
                 <div className="flex justify-between p-3 bg-white rounded-lg">
                   <span className="text-[#212121]">Đã tắt:</span>
-                  <span className="text-[#B71C1C]">9</span>
+                  <span className="text-[#B71C1C]">{disabledPermissions}</span>
                 </div>
               </CardContent>
             </Card>

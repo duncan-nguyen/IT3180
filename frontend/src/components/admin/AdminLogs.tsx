@@ -1,120 +1,18 @@
-import AdminLayout from './AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
+import { Database, Download, FileText, Filter, Search, Settings, Shield, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuditLog, AuditLogStatsResponse, logsService } from '../../services/logs-service';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { FileText, Download, Filter, Search, User, Shield, Database, Settings } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import AdminLayout from './AdminLayout';
 
 interface AdminLogsProps {
   onLogout: () => void;
 }
-
-const activityLogs = [
-  {
-    id: 1,
-    timestamp: '03/11/2025 14:32',
-    user: 'admin@dongda.gov.vn',
-    role: 'Admin',
-    action: 'Tạo tài khoản mới',
-    details: 'Tạo tài khoản cho Nguyễn Văn A (Tổ trưởng Tổ 5)',
-    type: 'account',
-    status: 'success',
-  },
-  {
-    id: 2,
-    timestamp: '03/11/2025 14:15',
-    user: 'canbo.dongda@gov.vn',
-    role: 'Cán bộ',
-    action: 'Cập nhật kiến nghị',
-    details: 'Chuyển kiến nghị #KB-2025-156 cho Công an Phường',
-    type: 'feedback',
-    status: 'success',
-  },
-  {
-    id: 3,
-    timestamp: '03/11/2025 13:58',
-    user: 'admin@dongda.gov.vn',
-    role: 'Admin',
-    action: 'Thay đổi cấu hình',
-    details: 'Cập nhật thời gian timeout phiên: 30 phút',
-    type: 'settings',
-    status: 'success',
-  },
-  {
-    id: 4,
-    timestamp: '03/11/2025 13:45',
-    user: 'nguyen.vana@dongda.gov.vn',
-    role: 'Tổ trưởng',
-    action: 'Thêm hộ khẩu',
-    details: 'Thêm hộ khẩu mới tại 15 Nguyễn Lương Bằng',
-    type: 'household',
-    status: 'success',
-  },
-  {
-    id: 5,
-    timestamp: '03/11/2025 13:30',
-    user: 'unknown@email.com',
-    role: 'Unknown',
-    action: 'Đăng nhập thất bại',
-    details: 'Sai mật khẩu 3 lần liên tiếp',
-    type: 'security',
-    status: 'error',
-  },
-  {
-    id: 6,
-    timestamp: '03/11/2025 12:22',
-    user: 'admin@dongda.gov.vn',
-    role: 'Admin',
-    action: 'Sao lưu dữ liệu',
-    details: 'Tự động sao lưu cơ sở dữ liệu - 2.4 GB',
-    type: 'database',
-    status: 'success',
-  },
-  {
-    id: 7,
-    timestamp: '03/11/2025 11:15',
-    user: 'canbo.dongda@gov.vn',
-    role: 'Cán bộ',
-    action: 'Xuất báo cáo',
-    details: 'Xuất báo cáo thống kê tháng 10/2025',
-    type: 'report',
-    status: 'success',
-  },
-  {
-    id: 8,
-    timestamp: '03/11/2025 10:48',
-    user: 'admin@dongda.gov.vn',
-    role: 'Admin',
-    action: 'Phân quyền',
-    details: 'Cập nhật quyền cho vai trò Tổ trưởng',
-    type: 'permission',
-    status: 'success',
-  },
-  {
-    id: 9,
-    timestamp: '03/11/2025 10:30',
-    user: 'tran.thib@citizen.vn',
-    role: 'Người dân',
-    action: 'Gửi kiến nghị',
-    details: 'Gửi kiến nghị về đèn đường hỏng',
-    type: 'feedback',
-    status: 'success',
-  },
-  {
-    id: 10,
-    timestamp: '03/11/2025 09:15',
-    user: 'admin@dongda.gov.vn',
-    role: 'Admin',
-    action: 'Đăng nhập',
-    details: 'Đăng nhập thành công từ IP 192.168.1.100',
-    type: 'security',
-    status: 'success',
-  },
-];
 
 const getActionIcon = (type: string) => {
   switch (type) {
@@ -148,12 +46,107 @@ const getActionColor = (type: string) => {
   }
 };
 
+// Helper to map action to type for icon/color
+const getActionType = (action: string): string => {
+  const actionUpper = action.toUpperCase();
+  if (actionUpper.includes('USER') || actionUpper.includes('ACCOUNT') || actionUpper.includes('LOCK')) {
+    return 'account';
+  }
+  if (actionUpper.includes('LOGIN') || actionUpper.includes('LOGOUT') || actionUpper.includes('FAILED')) {
+    return 'security';
+  }
+  if (actionUpper.includes('ROLE') || actionUpper.includes('PERMISSION')) {
+    return 'permission';
+  }
+  if (actionUpper.includes('BACKUP') || actionUpper.includes('RESTORE')) {
+    return 'database';
+  }
+  if (actionUpper.includes('SETTING') || actionUpper.includes('CONFIG')) {
+    return 'settings';
+  }
+  return 'default';
+};
+
+// Helper to format timestamp
+const formatTimestamp = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleString('vi-VN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Helper to get Vietnamese role name
+const getRoleDisplayName = (role: string | null): string => {
+  if (!role) return 'Unknown';
+  const roleMap: Record<string, string> = {
+    'admin': 'Admin',
+    'can_bo_phuong': 'Cán bộ',
+    'to_truong': 'Tổ trưởng',
+    'nguoi_dan': 'Người dân',
+  };
+  return roleMap[role] || role;
+};
+
 export default function AdminLogs({ onLogout }: AdminLogsProps) {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [stats, setStats] = useState<AuditLogStatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const itemsPerPage = 10;
-  const totalItems = 247;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Filter states
+  const [actionType, setActionType] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch logs data
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setLoading(true);
+        const response = await logsService.getLogs({
+          page: currentPage,
+          page_size: itemsPerPage,
+          action_type: actionType !== 'all' ? actionType : undefined,
+          role: roleFilter !== 'all' ? roleFilter : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          search: searchQuery || undefined,
+        });
+
+        setLogs(response.logs);
+        setTotalItems(response.total);
+        setTotalPages(response.total_pages);
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [currentPage, actionType, roleFilter, statusFilter, searchQuery]);
+
+  // Fetch stats data
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const statsData = await logsService.getStats();
+        setStats(statsData);
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const handlePrevious = () => {
     if (currentPage > 1) {
@@ -197,7 +190,7 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label className="text-[#212121]">Loại hoạt động</Label>
-                <Select defaultValue="all">
+                <Select value={actionType} onValueChange={setActionType}>
                   <SelectTrigger className="h-12 border-2 border-[#212121]/20">
                     <SelectValue />
                   </SelectTrigger>
@@ -214,23 +207,23 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
 
               <div className="space-y-2">
                 <Label className="text-[#212121]">Vai trò</Label>
-                <Select defaultValue="all">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger className="h-12 border-2 border-[#212121]/20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="official">Cán bộ</SelectItem>
-                    <SelectItem value="leader">Tổ trưởng</SelectItem>
-                    <SelectItem value="citizen">Người dân</SelectItem>
+                    <SelectItem value="can_bo_phuong">Cán bộ</SelectItem>
+                    <SelectItem value="to_truong">Tổ trưởng</SelectItem>
+                    <SelectItem value="nguoi_dan">Người dân</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-[#212121]">Trạng thái</Label>
-                <Select defaultValue="all">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-12 border-2 border-[#212121]/20">
                     <SelectValue />
                   </SelectTrigger>
@@ -249,6 +242,8 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
                   <Input
                     placeholder="Tìm theo người dùng..."
                     className="h-12 pl-12 border-2 border-[#212121]/20"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
@@ -266,7 +261,7 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Hôm nay</p>
-                  <p className="text-3xl text-[#212121]">247</p>
+                  <p className="text-3xl text-[#212121]">{stats?.today_count || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -280,7 +275,7 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Thành công</p>
-                  <p className="text-3xl text-[#212121]">243</p>
+                  <p className="text-3xl text-[#212121]">{stats?.success_count || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -294,7 +289,7 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Lỗi</p>
-                  <p className="text-3xl text-[#212121]">4</p>
+                  <p className="text-3xl text-[#212121]">{stats?.error_count || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -308,7 +303,7 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Người dùng</p>
-                  <p className="text-3xl text-[#212121]">42</p>
+                  <p className="text-3xl text-[#212121]">{stats?.unique_users || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -321,8 +316,8 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
             <CardTitle className="text-[#212121]">
               Nhật ký gần đây
             </CardTitle>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-12 border-2 border-[#212121]/20"
               onClick={() => navigate('/admin/logs/export')}
             >
@@ -331,66 +326,73 @@ export default function AdminLogs({ onLogout }: AdminLogsProps) {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {activityLogs.map((log) => {
-                const Icon = getActionIcon(log.type);
-                const color = getActionColor(log.type);
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <p className="text-[#212121]">Đang tải dữ liệu...</p>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="flex justify-center items-center py-12">
+                <p className="text-[#212121]">Không có nhật ký nào</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {logs.map((log) => {
+                  const type = getActionType(log.action);
+                  const Icon = getActionIcon(type);
+                  const color = getActionColor(type);
 
-                return (
-                  <div
-                    key={log.id}
-                    className="p-6 bg-[#F5F5F5] rounded-lg hover:bg-[#E0E0E0] transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="p-3 rounded-lg flex-shrink-0"
-                        style={{ backgroundColor: `${color}20` }}
-                      >
-                        <Icon className="w-6 h-6" style={{ color }} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <div>
-                            <h3 className="text-[#212121] mb-1">
-                              {log.action}
-                            </h3>
-                            <p className="text-[#212121]">
-                              {log.details}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={log.status === 'success' ? 'default' : 'destructive'}
-                            className={
-                              log.status === 'success'
-                                ? 'bg-[#1B5E20] hover:bg-[#1B5E20]/90'
-                                : 'bg-[#B71C1C] hover:bg-[#B71C1C]/90'
-                            }
-                          >
-                            {log.status === 'success' ? 'Thành công' : 'Lỗi'}
-                          </Badge>
+                  return (
+                    <div
+                      key={log.id}
+                      className="p-6 bg-[#F5F5F5] rounded-lg hover:bg-[#E0E0E0] transition-colors cursor-pointer"
+                      onClick={() => navigate(`/admin/logs/${log.id}`)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className="p-3 rounded-lg flex-shrink-0"
+                          style={{ backgroundColor: `${color}20` }}
+                        >
+                          <Icon className="w-6 h-6" style={{ color }} />
                         </div>
 
-                        <div className="flex items-center gap-4 text-sm text-[#212121]">
-                          <span className="flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            {log.user}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <Shield className="w-4 h-4" />
-                            {log.role}
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <FileText className="w-4 h-4" />
-                            {log.timestamp}
-                          </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <div>
+                              <h3 className="text-[#212121] mb-1">
+                                {log.action}
+                              </h3>
+                              <p className="text-[#212121]">
+                                {log.entity_name}
+                              </p>
+                            </div>
+                            <Badge
+                              className="bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                            >
+                              Thành công
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-sm text-[#212121]">
+                            <span className="flex items-center gap-2">
+                              <User className="w-4 h-4" />
+                              {log.username || 'Unknown'}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <Shield className="w-4 h-4" />
+                              {getRoleDisplayName(log.user_role)}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              {formatTimestamp(log.timestamp)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-[#212121]/10">

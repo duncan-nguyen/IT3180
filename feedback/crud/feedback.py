@@ -16,6 +16,7 @@ async def get_feedbacks(
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
     q: str | None = None,
+    user_id: str | None = None,
 ):
     query = select(Feedback)
 
@@ -38,6 +39,8 @@ async def get_feedbacks(
         query = query.filter(Feedback.updated_at <= next_day)
     if q:
         query = query.filter(Feedback.content.ilike(f"%{q}%"))
+    if user_id:
+        query = query.filter(Feedback.created_by_user_id == user_id)
 
     result = await client.execute(query)
     feedbacks = result.scalars().all()

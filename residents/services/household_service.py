@@ -99,6 +99,34 @@ class HouseholdService:
             return DbResponse(data=household.as_dict())
 
     @staticmethod
+    async def get_household_by_citizen_id(citizen_id: str):
+        async with AsyncSessionLocal() as session:
+            # 1. Find Citizen to get household_id
+            query_citizen = select(Citizen).where(Citizen.id == citizen_id)
+            result_citizen = await session.execute(query_citizen)
+            citizen = result_citizen.scalar_one_or_none()
+
+            if not citizen or not citizen.household_id:
+                return None
+
+            # 2. Get Household Detail (re-using logic is better but query is simple)
+            query = (
+                select(Household)
+                .options(selectinload(Household.members))
+                .filter(Household.id == citizen.household_id, Household.is_active == True)
+            )
+
+            result = await session.execute(query)
+            household = result.scalar_one_or_none()
+
+            if not household:
+                return None
+
+            h_dict = household.as_dict()
+            h_dict["nhan_khau"] = [m.as_dict() for m in household.members]
+            return DbResponse(data=h_dict)
+
+    @staticmethod
     async def create_hokhau(data: Dict[str, Any]):
         async with AsyncSessionLocal() as session:
             # Handle data conversion if needed (e.g. UUIDs)

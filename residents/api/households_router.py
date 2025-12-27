@@ -160,3 +160,43 @@ async def delete_hokhau(
             status_code=500,
             detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
         )
+        return {
+            "data": bool(response.data),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.get("/me/info", summary="Get household information of current user (Citizen)")
+async def get_my_household(
+    user_data: UserInfor = Depends(RemoteBearer(accepted_role_list=[UserRole.NGUOI_DAN])),
+):
+    try:
+        # For Citizen, scope_id MUST be their citizen_id
+        if not user_data.scope_id:
+             raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_SCOPE", "message": "Tài khoản chưa được liên kết với nhân khẩu."}}
+            )
+
+        response = await HouseholdService.get_household_by_citizen_id(user_data.scope_id)
+        if not response:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": {"code": "NOT_FOUND", "message": "Không tìm thấy hộ khẩu của bạn."}
+                },
+            )
+        return {
+            "data": response.data,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )

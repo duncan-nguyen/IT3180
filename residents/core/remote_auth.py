@@ -5,9 +5,7 @@ from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from schemas.auth import AuthRes, UserInfor, UserRole
 
-AUTH_SERVICE_URL = os.getenv(
-    "AUTH_SERVICE_URL", "http://authentication:8000/api/v1/auth"
-)
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://authentication:8000/api/v1")
 
 
 class RemoteBearer(HTTPBearer):

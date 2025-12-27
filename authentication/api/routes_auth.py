@@ -43,9 +43,7 @@ auth_router = APIRouter()
 
 
 @auth_router.post("/validate", response_model=AuthRes, status_code=200)
-async def auth_check(
-    request_data: ValidateRequest, db: AsyncSession = Depends(get_db)
-):
+async def auth_check(request_data: ValidateRequest, db: AsyncSession = Depends(get_db)):
     # Extract token from request body
     token = request_data.access_token
 
@@ -318,13 +316,3 @@ async def unlock_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
     return {"message": "Successfully Unlocked"}
-
-
-# bonus
-@auth_router.post("/refresh", status_code=status.HTTP_200_OK)
-async def refresh_token(refresh_token: RefreshTokenRequest = Body(..., embed=True)):
-    try:
-        new_access_token = recreate_token(refresh_token.refresh_token)
-        return AccessTokenResponse(access_token=new_access_token, token_type="bearer")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Invalid refresh token: {str(e)}")

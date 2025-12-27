@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import HTTPException
 from models import AuditLog, User
-from schemas.auth_schema import AuditLogForm, UserInfor
+from schemas.auth_schema import AuditLogForm, UserInfor, UserRole
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,10 @@ async def authenticate_user(
     user = result.scalar_one_or_none()
 
     if not user:
+        return None
+
+    # Check if account is locked
+    if not user.active:
         return None
 
     if verify_pw(password, user.password_hash):
@@ -73,7 +77,7 @@ async def get_current_user(access_token: str, db: AsyncSession):
     return UserInfor(
         id=u.id,
         username=u.username,
-        role=u.role,
+        role=UserRole(u.role),
         active=bool(u.active),
         scope_id=str(u.scope_id) if u.scope_id else "",
     )

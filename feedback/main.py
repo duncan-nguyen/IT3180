@@ -47,7 +47,7 @@ async def test_auth():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "http://authentication:8000/api/v1/auth/validate",
+                "http://authentication:8000/api/v1/validate",
                 json={"username": "admin", "access_token": "test"},
             )
             return {

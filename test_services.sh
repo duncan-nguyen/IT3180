@@ -5,7 +5,7 @@
 # set -e  # Exit on error
 
 # Base URLs
-AUTH_BASE="http://localhost:8001/api/v1/auth"
+AUTH_BASE="http://localhost:8001/api/v1"
 RESIDENTS_BASE="http://localhost:8002/api/v1"
 FEEDBACK_BASE="http://localhost:8003/api/v1"
 

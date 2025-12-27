@@ -28,13 +28,20 @@ async def get_feedback_list(
                 UserRole.ADMIN,
                 UserRole.TO_TRUONG,
                 UserRole.CAN_BO_PHUONG,
+                UserRole.NGUOI_DAN,
             ]
         )
     ),
 ):
     logger.info(
-        f"GET /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Filters: status={status}, category={category}, start_date={start_date}, update_date={update_date}, q={q}"
+        f"GET /feedback - User: {user_data.username} (ID: {user_data.id}), Role: {user_data.role.value}, Filters: status={status}, category={category}, q={q}"
     )
+
+    # Filter by user_id if user is a Citizen
+    filter_user_id = None
+    if user_data.role == UserRole.NGUOI_DAN:
+        filter_user_id = str(user_data.id)
+
     feedback = await crud_feedback.get_feedbacks(
         client=db,
         trang_thai=status,
@@ -42,6 +49,7 @@ async def get_feedback_list(
         start_date=start_date,
         end_date=update_date,
         q=q,
+        user_id=filter_user_id,
     )
     transformed_data = [
         {"stt_feedback": str(index), "data": record}

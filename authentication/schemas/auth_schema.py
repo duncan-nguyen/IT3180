@@ -1,4 +1,6 @@
+from datetime import datetime
 from enum import Enum
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -46,8 +48,8 @@ class RefreshTokenRequest(BaseModel):
 
 
 class UserUpdateForm(BaseModel):
-    role: UserRole | None = None
-    scope_id: str | None = None
+    role: Optional[UserRole] = None
+    scope_id: Optional[str] = None
 
 
 class ResetPasswordForm(BaseModel):
@@ -87,3 +89,37 @@ class AuthRes(BaseModel):
 class ValidateRequest(BaseModel):
     username: str
     access_token: str
+
+
+# Audit Log Schemas
+class AuditLogResponse(BaseModel):
+    id: UUID
+    user_id: Optional[UUID]
+    username: Optional[str]
+    user_role: Optional[str]
+    action: str
+    entity_name: str
+    entity_id: Optional[UUID]
+    before_state: Optional[dict]
+    after_state: Optional[dict]
+    timestamp: datetime
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AuditLogListResponse(BaseModel):
+    logs: List[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class AuditLogStatsResponse(BaseModel):
+    today_count: int
+    success_count: int
+    error_count: int
+    unique_users: int

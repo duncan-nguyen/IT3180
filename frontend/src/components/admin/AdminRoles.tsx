@@ -1,74 +1,76 @@
-import AdminLayout from './AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Shield, Edit, Users, Eye, Trash2 } from 'lucide-react';
+import { Edit, Eye, Loader2, Shield, Trash2, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Role, rolesService } from '../../services/roles-service';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import AdminLayout from './AdminLayout';
 
 interface AdminRolesProps {
   onLogout: () => void;
 }
 
-const roles = [
-  {
-    id: 1,
-    name: 'Người dân',
-    code: 'CITIZEN',
-    userCount: 1245,
-    color: '#0D47A1',
-    permissions: [
-      'Xem thông tin hộ khẩu của mình',
-      'Gửi kiến nghị, phản ánh',
-      'Xem trạng thái kiến nghị đã gửi',
-      'Cập nhật thông tin cá nhân',
-    ],
-  },
-  {
-    id: 2,
-    name: 'Tổ trưởng',
-    code: 'LEADER',
-    userCount: 7,
-    color: '#1B5E20',
-    permissions: [
-      'Quản lý danh sách hộ khẩu trong tổ',
-      'Quản lý danh sách nhân khẩu trong tổ',
-      'Xem và chuyển tiếp kiến nghị',
-      'Thêm, sửa, xóa thông tin hộ/nhân khẩu',
-      'Xuất báo cáo thống kê cấp tổ',
-    ],
-  },
-  {
-    id: 3,
-    name: 'Cán bộ Phường/Xã',
-    code: 'OFFICIAL',
-    userCount: 3,
-    color: '#E65100',
-    permissions: [
-      'Xem toàn bộ kiến nghị của phường',
-      'Chuyển tiếp kiến nghị cho cơ quan chức năng',
-      'Theo dõi tiến độ xử lý',
-      'Cập nhật trạng thái và phản hồi',
-      'Xuất báo cáo thống kê cấp phường',
-    ],
-  },
-  {
-    id: 4,
-    name: 'Quản trị viên',
-    code: 'ADMIN',
-    userCount: 2,
-    color: '#B71C1C',
-    permissions: [
-      'Toàn quyền quản lý tài khoản',
-      'Phân quyền và vai trò',
-      'Cấu hình hệ thống',
-      'Xem nhật ký hoạt động',
-      'Quản lý dữ liệu toàn hệ thống',
-    ],
-  },
-];
+// Map role codes to route-friendly IDs
+const ROLE_CODE_MAP: { [key: string]: string } = {
+  'CITIZEN': 'nguoi_dan',
+  'LEADER': 'to_truong',
+  'OFFICIAL': 'can_bo_phuong',
+  'ADMIN': 'admin',
+};
 
 export default function AdminRoles({ onLogout }: AdminRolesProps) {
   const navigate = useNavigate();
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadRoles();
+  }, []);
+
+  const loadRoles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await rolesService.getAllRoles();
+      setRoles(data);
+    } catch (err) {
+      setError('Không thể tải danh sách vai trò. Vui lòng thử lại.');
+      console.error('Error loading roles:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRoleCodeFromMap = (code: string): string => {
+    return ROLE_CODE_MAP[code] || code.toLowerCase();
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout onLogout={onLogout}>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout onLogout={onLogout}>
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+            {error}
+          </div>
+          <Button onClick={loadRoles} className="mt-4">
+            Thử lại
+          </Button>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout onLogout={onLogout}>
@@ -97,8 +99,8 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                       <CardTitle className="text-[#212121] mb-2">
                         {role.name}
                       </CardTitle>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className="border-[#212121]/20 text-[#212121]"
                       >
                         {role.code}
@@ -109,7 +111,7 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                     variant="outline"
                     size="sm"
                     className="h-12 px-4 border-2 border-[#212121]/20"
-                    onClick={() => navigate(`/admin/roles/${role.id}/edit`)}
+                    onClick={() => navigate(`/admin/roles/${getRoleCodeFromMap(role.code)}/edit`)}
                   >
                     <Edit className="w-5 h-5 mr-2" />
                     Sửa
@@ -124,7 +126,7 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                   <div>
                     <p className="text-sm text-[#212121]">Số người dùng</p>
                     <p className="text-xl text-[#212121]">
-                      {role.userCount} tài khoản
+                      {role.user_count} tài khoản
                     </p>
                   </div>
                 </div>
@@ -138,8 +140,8 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                     {role.permissions.map((permission, index) => (
                       <li key={index} className="flex items-start gap-3">
                         <div className="mt-1">
-                          <div 
-                            className="w-2 h-2 rounded-full" 
+                          <div
+                            className="w-2 h-2 rounded-full"
                             style={{ backgroundColor: role.color }}
                           />
                         </div>
@@ -156,7 +158,7 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                   <Button
                     variant="outline"
                     className="flex-1 h-12 border-2 border-[#212121]/20"
-                    onClick={() => navigate(`/admin/roles/${role.id}/detail`)}
+                    onClick={() => navigate(`/admin/roles/${getRoleCodeFromMap(role.code)}/detail`)}
                   >
                     <Eye className="w-5 h-5 mr-2" />
                     Chi tiết
@@ -165,7 +167,7 @@ export default function AdminRoles({ onLogout }: AdminRolesProps) {
                     <Button
                       variant="outline"
                       className="h-12 px-4 border-2 border-[#B71C1C]/30 text-[#B71C1C] hover:bg-[#B71C1C]/10"
-                      onClick={() => navigate(`/admin/roles/${role.id}/delete`)}
+                      onClick={() => navigate(`/admin/roles/${getRoleCodeFromMap(role.code)}/delete`)}
                     >
                       <Trash2 className="w-5 h-5" />
                     </Button>
