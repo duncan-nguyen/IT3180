@@ -28,43 +28,19 @@ services:
       db:
         condition: service_healthy
 
-  authentication:
+  backend:
     build:
-      context: ./authentication
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: authentication_service
+    container_name: backend_service
     ports:
-      - "8017:8000"
+      - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-citizen_management}
-    depends_on:
-      db:
-        condition: service_healthy
-
-  residents:
-    build:
-      context: ./residents
-      dockerfile: Dockerfile
-    container_name: residents_service
-    ports:
-      - "8018:8000"
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-citizen_management}
-      AUTH_SERVICE_URL: http://authentication:8000/api/v1
-    depends_on:
-      db:
-        condition: service_healthy
-
-  feedback:
-    build:
-      context: ./feedback
-      dockerfile: Dockerfile
-    container_name: feedback_service
-    ports:
-      - "8019:8000"
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-citizen_management}
-      AUTH_SERVICE_URL: http://authentication:8000/api/v1
+      SECRET_KEY: ${SECRET_KEY:-your_secret_key_here_change_in_production}
+      ACCESS_TOKEN_EXPIRES: ${ACCESS_TOKEN_EXPIRES:-30}
+      REFRESH_TOKEN_EXPIRES: ${REFRESH_TOKEN_EXPIRES:-10080}
+      ALGORITHM: ${ALGORITHM:-HS256}
     depends_on:
       db:
         condition: service_healthy

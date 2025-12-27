@@ -1,11 +1,13 @@
 import axios from 'axios';
 
-// Base URL configuration - specific to each service
-// In development, we use proxy or localhost ports.
-// Assuming we are running locally for now or using Vite proxy.
-const AUTH_URL = 'http://localhost:8017/api/v1';
-const RESIDENTS_URL = 'http://localhost:8018/api/v1';
-const FEEDBACK_URL = 'http://localhost:8019/api/v1';
+// Base URL configuration - unified backend service
+// All services are now consolidated into a single backend on port 8000
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+// For backward compatibility, all clients point to the same backend
+const AUTH_URL = API_BASE_URL;
+const RESIDENTS_URL = API_BASE_URL;
+const FEEDBACK_URL = API_BASE_URL;
 
 // Create generic client creator
 const createClient = (baseURL: string) => {
