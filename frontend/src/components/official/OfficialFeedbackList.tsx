@@ -40,8 +40,8 @@ export default function OfficialFeedbackList({ userName, onLogout }: OfficialFee
 
   const getStatusColor = (status: string) => {
     // Map status string to color
-    // Values from enum: 'chua_xu_ly', 'dang_xu_ly', 'da_xu_ly', 'tu_choi', 'da_phan_hoi'
-    if (status === 'da_phan_hoi' || status === 'da_xu_ly') return 'bg-[#1B5E20] text-white'; // Green
+    // Values from enum: 'chua_xu_ly', 'dang_xu_ly', 'da_xu_ly', 'tu_choi', 'dang_xu_ly'
+    if (status === 'dang_xu_ly' || status === 'da_xu_ly') return 'bg-[#1B5E20] text-white'; // Green
     if (status === 'dang_xu_ly') return 'bg-[#0D47A1] text-white'; // Blue
     if (status === 'moi_ghi_nhan' || status === 'chua_xu_ly') return 'bg-[#FBC02D] text-[#212121]'; // Yellow
     if (status === 'tu_choi') return 'bg-red-600 text-white';
@@ -54,7 +54,7 @@ export default function OfficialFeedbackList({ userName, onLogout }: OfficialFee
       'chua_xu_ly': 'Chờ phản hồi', // Mapping to UI term
       'dang_xu_ly': 'Đang xử lý',
       'da_xu_ly': 'Đã xử lý',
-      'da_phan_hoi': 'Đã phản hồi',
+      'dang_xu_ly': 'Đã phản hồi',
       'tu_choi': 'Từ chối'
     };
     return labels[status] || status;

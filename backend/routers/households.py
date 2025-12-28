@@ -42,6 +42,16 @@ async def get_my_household(
                 detail={"error": {"code": "INVALID_SCOPE", "message": "Tài khoản chưa được liên kết với nhân khẩu."}},
             )
 
+        # Validate scope_id is a valid UUID format
+        import uuid
+        try:
+            uuid.UUID(user_data.scope_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_SCOPE_ID", "message": "Mã nhân khẩu không hợp lệ. Vui lòng liên hệ quản trị viên."}},
+            )
+
         response = await HouseholdService.get_household_by_citizen_id(user_data.scope_id)
         if not response:
             raise HTTPException(

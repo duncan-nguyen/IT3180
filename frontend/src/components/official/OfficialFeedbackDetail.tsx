@@ -60,14 +60,14 @@ export default function OfficialFeedbackDetail({ onLogout }: OfficialFeedbackDet
 
       // Update local state or refetch
       setSubmitSuccess(true);
-      // Also update status to 'da_phan_hoi' if needed, probably handled by backend or we call updateStatus
-      if (feedback && feedback.status !== 'da_phan_hoi') {
+      // Also update status to 'dang_xu_ly' if needed, probably handled by backend or we call updateStatus
+      if (feedback && feedback.status !== 'dang_xu_ly') {
         // Optional: explicit status update if not handled by response endpoint
         // But backend create_feedback_response logic doesn't seem to auto-update status in the snippet I saw?
         // I'll assume we might need to, but for now let's just create response.
-        // Wait, actually I should update status to 'da_phan_hoi'.
+        // Wait, actually I should update status to 'dang_xu_ly'.
         // Let's call updateStatus just in case.
-        await feedbackService.updateFeedbackStatus(id, 'da_phan_hoi');
+        await feedbackService.updateFeedbackStatus(id, 'dang_xu_ly');
       }
 
       await fetchFeedbackDetail(id); // Reload to see the new response

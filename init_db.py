@@ -59,6 +59,36 @@ class AuditLog(Base):
 # ==========================================
 # Residents Models
 # ==========================================
+# ==========================================
+# Administrative Division Models
+# ==========================================
+class Province(Base):
+    __tablename__ = "provinces"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False)
+    code = Column(String(10), unique=True)
+    is_active = Column(Boolean, default=True)
+
+
+class Ward(Base):
+    __tablename__ = "wards"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    province_id = Column(UUID(as_uuid=True), ForeignKey("provinces.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    code = Column(String(20), unique=True)
+    is_active = Column(Boolean, default=True)
+
+
+class NeighborhoodGroup(Base):
+    __tablename__ = "neighborhood_groups"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ward_id = Column(UUID(as_uuid=True), ForeignKey("wards.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    code = Column(String(20))
+    to_truong_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
 class Household(Base):
     __tablename__ = "households"
 
@@ -68,12 +98,13 @@ class Household(Base):
         UUID(as_uuid=True), ForeignKey("citizens.id"), nullable=True
     )
     address = Column(String(255), nullable=False)
-    ward = Column(String(100), nullable=False)
+    ward = Column(String(100), nullable=False)  # Legacy
+    ward_id = Column(UUID(as_uuid=True), ForeignKey("wards.id"), nullable=True)
+    neighborhood_group_id = Column(UUID(as_uuid=True), ForeignKey("neighborhood_groups.id"), nullable=True)
     scope_id = Column(String(50))
     is_active = Column(Boolean, default=True)
 
     # Relations
-    # Lưu ý: foreign_keys cần string reference để tránh lỗi circular import tại thời điểm define
     head_of_household = relationship(
         "Citizen", foreign_keys="[Household.head_of_household_id]", post_update=True
     )
@@ -335,6 +366,62 @@ async def init_db():
                 feedback.status = "processing"
             else:
                 print("Feedbacks already exist.")
+
+            # --- SEED ADMINISTRATIVE DIVISIONS ---
+            stmt = select(Province).limit(1)
+            result = await session.execute(stmt)
+            existing_province = result.scalar_one_or_none()
+
+            if not existing_province:
+                print("Seeding administrative divisions...")
+                
+                # 5 Provinces
+                province_data = [
+                    ("Hà Nội", "HN"),
+                    ("Hồ Chí Minh", "HCM"),
+                    ("Đà Nẵng", "DN"),
+                    ("Hải Phòng", "HP"),
+                    ("Cần Thơ", "CT"),
+                ]
+                
+                for prov_name, prov_code in province_data:
+                    province_id = uuid.uuid4()
+                    province = Province(
+                        id=province_id,
+                        name=prov_name,
+                        code=prov_code,
+                        is_active=True,
+                    )
+                    session.add(province)
+                    await session.flush()
+                    
+                    # 10 Wards per Province
+                    for w_idx in range(1, 11):
+                        ward_id = uuid.uuid4()
+                        ward = Ward(
+                            id=ward_id,
+                            province_id=province_id,
+                            name=f"Phường {w_idx} - {prov_name}",
+                            code=f"{prov_code}-P{w_idx:02d}",
+                            is_active=True,
+                        )
+                        session.add(ward)
+                        await session.flush()
+                        
+                        # 10 Neighborhood Groups per Ward
+                        for ng_idx in range(1, 11):
+                            ng = NeighborhoodGroup(
+                                id=uuid.uuid4(),
+                                ward_id=ward_id,
+                                name=f"Tổ {ng_idx}",
+                                code=f"{prov_code}-P{w_idx:02d}-T{ng_idx:02d}",
+                                is_active=True,
+                            )
+                            session.add(ng)
+                    
+                print(f"Seeded 5 provinces, 50 wards, 500 neighborhood groups.")
+            else:
+                print("Administrative divisions already exist.")
 
         # Commit transaction (được tự động thực hiện khi thoát khỏi block `async with session.begin()`)
         print("Data seeding completed successfully.")

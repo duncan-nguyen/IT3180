@@ -14,6 +14,29 @@ interface LoginResponse {
     };
 }
 
+export interface User {
+    id: string;
+    username: string;
+    role: string;
+    scope_id?: string;
+    active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface UserCreateData {
+    username: string;
+    password: string;
+    role: string;
+    scope_id?: string;
+}
+
+export interface UserUpdateData {
+    username?: string;
+    role?: string;
+    scope_id?: string;
+}
+
 export const authService = {
     async login(username: string, password: string): Promise<LoginResponse> {
         const formData = new URLSearchParams();
@@ -54,8 +77,46 @@ export const authService = {
         return localStorage.getItem('token');
     },
 
-    async createUser(data: any) {
+    async createUser(data: UserCreateData) {
         const response = await authClient.post('/users', { user: data });
+        return response.data;
+    },
+
+    async getUsers(): Promise<User[]> {
+        const response = await authClient.get<User[]>('/users');
+        return response.data;
+    },
+
+    async getUserById(id: string): Promise<User> {
+        const response = await authClient.get<User>(`/users/${id}`);
+        return response.data;
+    },
+
+    async updateUser(id: string, data: UserUpdateData) {
+        const response = await authClient.put(`/users/${id}`, { update_data: data });
+        return response.data;
+    },
+
+    async deleteUser(id: string) {
+        const response = await authClient.delete(`/users/${id}`);
+        return response.data;
+    },
+
+    async lockUser(id: string) {
+        const response = await authClient.put(`/users/${id}/lock`);
+        return response.data;
+    },
+
+    async unlockUser(id: string) {
+        const response = await authClient.put(`/users/${id}/unlock`);
+        return response.data;
+    },
+
+    async resetPassword(id: string, newPassword: string) {
+        // Backend expects POST /{id}/reset-password with { password: { password: newPassword } }
+        const response = await authClient.post(`/${id}/reset-password`, {
+            password: { password: newPassword }
+        });
         return response.data;
     }
 };

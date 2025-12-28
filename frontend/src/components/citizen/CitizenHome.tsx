@@ -35,48 +35,51 @@ export default function CitizenHome({ userName, onLogout }: CitizenHomeProps) {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch Household Info - handle error independently
       try {
-        // Fetch Household Info
         const householdRes = await residentsClient.get('/households/me/info');
         if (householdRes.data.data) {
           const hh = householdRes.data.data;
           setHouseholdId(hh.household_number || hh.id);
           setMembers(hh.nhan_khau || []);
         }
+      } catch (error) {
+        console.error("Error fetching household data:", error);
+        // Continue to fetch feedback even if household fails
+      }
 
-        // Fetch Feedbacks
+      // Fetch Feedbacks - handle error independently
+      try {
         const feedbackRes = await feedbackClient.get('/feedback');
         // Backend returns list directly: [{ stt_feedback: "1", data: {...} }]
-        // Check the structure in routers/feedback.py: -> returns transformed_data list
-        // Each item is { "stt_feedback": ..., "data": record }
-        // So we map it to get record.
         if (Array.isArray(feedbackRes.data)) {
           const fbList = feedbackRes.data.map((item: any) => item.data);
           setFeedbacks(fbList);
         }
-
       } catch (error) {
-        console.error("Error fetching citizen data:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching feedback data:", error);
       }
+
+      setLoading(false);
     };
 
     fetchData();
   }, []);
 
   const getStatusColor = (status: string) => {
-    if (status === 'da_xu_ly' || status === 'Đã giải quyết') return 'bg-[#1B5E20] text-white';
-    if (status === 'dang_xu_ly' || status === 'Đang xử lý') return 'bg-[#0D47A1] text-white';
+    const s = status?.toUpperCase();
+    if (s === 'DA_GIAI_QUYET' || s === 'DA_XU_LY') return 'bg-[#1B5E20] text-white';
+    if (s === 'DANG_XU_LY') return 'bg-[#0D47A1] text-white';
     return 'bg-[#FBC02D] text-[#212121]';
   };
 
   const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'moi_ghi_nhan': return 'Mới ghi nhận';
-      case 'dang_xu_ly': return 'Đang xử lý';
-      case 'da_xu_ly': return 'Đã xử lý';
-      case 'da_huy': return 'Đã hủy';
+    const s = status?.toUpperCase();
+    switch (s) {
+      case 'MOI_GHI_NHAN': return 'Mới ghi nhận';
+      case 'DANG_XU_LY': return 'Đang xử lý';
+      case 'DA_GIAI_QUYET': return 'Đã giải quyết';
+      case 'DONG': return 'Đã đóng';
       default: return status;
     }
   }

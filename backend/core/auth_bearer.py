@@ -39,8 +39,12 @@ class JWTBearer(HTTPBearer):
         ):
             if not user_data.active:
                 raise HTTPException(status_code=403, detail="Locked User")
-            if user_data.role in self.accepted_role_list:
+            # Compare role values - user_data.role is string due to use_enum_values=True
+            accepted_role_values = [r.value if hasattr(r, 'value') else r for r in self.accepted_role_list]
+            if user_data.role in accepted_role_values:
                 return user_data
+            else:
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
         else:
             raise HTTPException(status_code=401, detail="Invalid User")
 

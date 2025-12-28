@@ -1,10 +1,12 @@
-import AdminLayout from './AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { AlertCircle, ArrowLeft, CheckCircle2, Key, Loader2, Save } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { authService } from '../../services/auth-service';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { ArrowLeft, Save, Key, AlertCircle } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import AdminLayout from './AdminLayout';
 
 interface AdminAccountResetPasswordProps {
   onLogout: () => void;
@@ -13,6 +15,49 @@ interface AdminAccountResetPasswordProps {
 export default function AdminAccountResetPassword({ onLogout }: AdminAccountResetPasswordProps) {
   const navigate = useNavigate();
   const { id } = useParams();
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!id) {
+      setError('Không tìm thấy ID người dùng');
+      return;
+    }
+
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      setError('Vui lòng nhập đầy đủ mật khẩu');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Mật khẩu phải có ít nhất 8 ký tự');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      await authService.resetPassword(id, newPassword);
+      setSuccess(true);
+      // Navigate back after 2 seconds
+      setTimeout(() => navigate('/admin'), 2000);
+    } catch (err: any) {
+      console.error('Error resetting password:', err);
+      setError(err.response?.data?.detail || 'Đặt lại mật khẩu thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AdminLayout onLogout={onLogout}>
@@ -31,7 +76,7 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
             Đặt lại Mật khẩu
           </h1>
           <p className="text-[#212121]">
-            Tài khoản: Nguyễn Văn An (ID: {id})
+            ID Tài khoản: {id}
           </p>
         </div>
 
@@ -50,6 +95,21 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Success Message */}
+                {success && (
+                  <div className="p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    Đặt lại mật khẩu thành công! Đang chuyển hướng...
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-700 rounded-lg">
+                    {error}
+                  </div>
+                )}
+
                 {/* Password Fields */}
                 <div className="space-y-3">
                   <Label htmlFor="new-password" className="text-[#212121]">
@@ -60,6 +120,9 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                     type="password"
                     placeholder="Tối thiểu 8 ký tự"
                     className="h-12 border-2 border-[#212121]/20"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    disabled={loading || success}
                   />
                 </div>
 
@@ -72,6 +135,9 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                     type="password"
                     placeholder="Nhập lại mật khẩu mới"
                     className="h-12 border-2 border-[#212121]/20"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading || success}
                   />
                 </div>
 
@@ -92,31 +158,7 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                           <span className="text-[#0D47A1] mt-1">•</span>
                           <span>Nên chứa chữ hoa, chữ thường, số và ký tự đặc biệt</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#0D47A1] mt-1">•</span>
-                          <span>Không sử dụng mật khẩu dễ đoán</span>
-                        </li>
                       </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Auto-send Option */}
-                <div className="p-4 bg-[#F5F5F5] rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="send-email"
-                      className="w-5 h-5 mt-1"
-                      defaultChecked
-                    />
-                    <div>
-                      <label htmlFor="send-email" className="text-[#212121] cursor-pointer">
-                        <strong>Gửi email thông báo</strong>
-                      </label>
-                      <p className="text-sm text-[#212121] mt-1">
-                        Gửi mật khẩu mới đến email người dùng: nguyenvanan@example.com
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -134,14 +176,28 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#0D47A1] hover:bg-[#0D47A1]/90">
-                  <Save className="w-5 h-5 mr-2" />
-                  Đặt lại Mật khẩu
+                <Button
+                  className="w-full h-14 bg-[#0D47A1] hover:bg-[#0D47A1]/90"
+                  onClick={handleSubmit}
+                  disabled={loading || success}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5 mr-2" />
+                      Đặt lại Mật khẩu
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => navigate('/admin')}
                   className="w-full h-14 border-2 border-[#212121]/20"
+                  disabled={loading}
                 >
                   Hủy
                 </Button>
@@ -163,52 +219,9 @@ export default function AdminAccountResetPassword({ onLogout }: AdminAccountRese
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#B71C1C] mt-1">•</span>
-                    <span>Người dùng sẽ bị đăng xuất khỏi tất cả thiết bị</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#B71C1C] mt-1">•</span>
-                    <span>Hành động này sẽ được ghi vào nhật ký hệ thống</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#B71C1C] mt-1">•</span>
                     <span>Người dùng cần sử dụng mật khẩu mới để đăng nhập</span>
                   </li>
                 </ul>
-              </CardContent>
-            </Card>
-
-            {/* User Info */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-[#212121]">
-                  Thông tin Người dùng
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Họ tên:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    Nguyễn Văn An
-                  </p>
-                </div>
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Email:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    nguyenvanan@example.com
-                  </p>
-                </div>
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Vai trò:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    Người dân
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </div>

@@ -1,5 +1,4 @@
 import datetime
-from datetime import timezone
 
 from models.feedback import Feedback, FeedbackResponse
 from schemas.common import Category, Status
@@ -98,7 +97,7 @@ async def create_feedback_response(
         agency=fbresponse.co_quan,
         attachment_url=fbresponse.tep_dinh_kem_url,
         feedback_id=feedback_id,
-        responded_at=datetime.datetime.now(timezone.utc),
+        responded_at=datetime.datetime.utcnow(),
         created_by_user_id=created_by_user_id,
     )
     client.add(response)
@@ -127,8 +126,8 @@ async def create_new_feedback(client: AsyncSession, posted_fb, user_id: str):
         scope_id=scope_id,
         created_by_user_id=created_by_user_id,
         report_count=1,
-        created_at=datetime.datetime.now(timezone.utc),
-        updated_at=datetime.datetime.now(timezone.utc),
+        created_at=datetime.datetime.utcnow(),
+        updated_at=datetime.datetime.utcnow(),
     )
 
     client.add(new_feedback)
@@ -160,8 +159,8 @@ async def merge_feedbacks(client: AsyncSession, merged_fb: MergedFB):
             content=sub_fb.content,
             report_count=count,
             created_by_user_id=sub_fb.created_by_user_id,
-            created_at=datetime.datetime.now(timezone.utc),
-            updated_at=datetime.datetime.now(timezone.utc),
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow(),
         )
         client.add(new_parent)
         await client.flush()

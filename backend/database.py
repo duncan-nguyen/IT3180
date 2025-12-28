@@ -23,6 +23,7 @@ async def get_db():
 
 
 class DbResponse:
-    def __init__(self, data, count=0):
+    def __init__(self, data, count=0, meta=None):
         self.data = data
         self.count = count
+        self.meta = meta

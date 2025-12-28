@@ -12,7 +12,9 @@ class Household(Base):
     household_number = Column(String(50), unique=True, nullable=False)
     head_of_household_id = Column(UUID(as_uuid=True), ForeignKey("citizens.id"), nullable=True)
     address = Column(String(255), nullable=False)
-    ward = Column(String(100), nullable=False)
+    ward = Column(String(100), nullable=False)  # Legacy - kept for backward compatibility
+    ward_id = Column(UUID(as_uuid=True), ForeignKey("wards.id"), nullable=True)
+    neighborhood_group_id = Column(UUID(as_uuid=True), ForeignKey("neighborhood_groups.id"), nullable=True)
     scope_id = Column(String(50))
     is_active = Column(Boolean, default=True)
 
@@ -23,3 +25,6 @@ class Household(Base):
     members = relationship(
         "Citizen", back_populates="household", foreign_keys="[Citizen.household_id]"
     )
+    ward_ref = relationship("Ward", back_populates="households")
+    neighborhood_group = relationship("NeighborhoodGroup", back_populates="households")
+

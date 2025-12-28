@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from database import AsyncSessionLocal, DbResponse
 from models import Citizen, Household, MovementLog
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import joinedload
 
 
@@ -68,6 +68,48 @@ class ResidentService:
             result = await session.execute(query)
             logs = result.scalars().all()
             return DbResponse(data=[l.as_dict() for l in logs])
+
+    @staticmethod
+    async def get_all_nhankhau(
+        q: str | None = None, page: int = 1, limit: int = 20
+    ):
+        async with AsyncSessionLocal() as session:
+            query = (
+                select(Citizen)
+                .options(joinedload(Citizen.household))
+                .filter(Citizen.is_active == True)
+            )
+
+            if q:
+                q_filter = f"%{q}%"
+                query = query.filter(
+                    or_(
+                        Citizen.full_name.ilike(q_filter),
+                        Citizen.cccd_number.ilike(q_filter),
+                    )
+                )
+
+            # Get total count
+            count_query = select(func.count()).select_from(query.subquery())
+            total_result = await session.execute(count_query)
+            total = total_result.scalar_one()
+
+            # Apply pagination
+            query = query.offset((page - 1) * limit).limit(limit)
+            result = await session.execute(query)
+            citizens = result.scalars().all()
+
+            data = []
+            for c in citizens:
+                c_dict = c.as_dict()
+                if c.household:
+                    c_dict["household"] = c.household.as_dict()
+                data.append(c_dict)
+
+            return DbResponse(
+                data=data,
+                meta={"total": total, "page": page, "limit": limit}
+            )
 
     @staticmethod
     async def search_nhankhau(q: str):

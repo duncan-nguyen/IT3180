@@ -12,6 +12,26 @@ router = APIRouter(prefix="/residents", tags=["residents"])
 COMMON_ROLES = [UserRole.ADMIN, UserRole.TO_TRUONG, UserRole.CAN_BO_PHUONG]
 
 
+@router.get("/", summary="Get all citizens with pagination")
+async def get_all_nhankhau(
+    q: str | None = Query(None, description="Search query (name or CCCD)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=COMMON_ROLES)),
+):
+    try:
+        response = await ResidentService.get_all_nhankhau(q=q, page=page, limit=limit)
+        return {
+            "data": response.data,
+            "pagination": response.meta,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
 @router.get("/search", summary="Search citizens by name or CCCD number")
 async def search_nhankhau(
     q: str = Query(..., description="Query string to search by name or CCCD number"),

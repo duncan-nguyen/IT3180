@@ -56,12 +56,25 @@ export const feedbackService = {
     },
 
     updateFeedbackStatus: async (id: string, status: string) => {
-        const response = await feedbackClient.put(`/feedback/${id}`, { trang_thai: status });
+        // Backend expects uppercase status values matching Status enum
+        const backendStatus = status.toUpperCase();
+        const response = await feedbackClient.put(`/feedback/${id}`, { trang_thai: backendStatus });
         return response.data;
     },
 
     respondToFeedback: async (id: string, payload: FeedbackResponsePayload) => {
         const response = await feedbackClient.post(`/feedback/${id}/response`, payload);
+        return response.data;
+    },
+
+    createFeedback: async (data: {
+        noi_dung: string;
+        phan_loai: string;
+        nguoi_phan_anh: {
+            nhankhau_id: string;
+        };
+    }) => {
+        const response = await feedbackClient.post('/feedback', data);
         return response.data;
     }
 };

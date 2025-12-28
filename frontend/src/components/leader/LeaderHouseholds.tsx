@@ -1,37 +1,52 @@
-import LeaderLayout from './LeaderLayout';
+import { Edit, Loader2, Plus, Search, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Household, householdsService } from '../../services/households-service';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { Input } from '../ui/input';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderHouseholdsProps {
   onLogout: () => void;
 }
 
-const mockHouseholds = [
-  { id: 'HK-001', owner: 'Nguyễn Văn An', address: '25 Nguyễn Trãi', members: 4, status: 'Đã xác minh' },
-  { id: 'HK-002', owner: 'Trần Thị Bình', address: '30 Lê Lợi', members: 3, status: 'Đã xác minh' },
-  { id: 'HK-003', owner: 'Lê Văn Cường', address: '15 Hai Bà Trưng', members: 5, status: 'Chờ xác minh' },
-  { id: 'HK-004', owner: 'Phạm Thị Dung', address: '42 Trần Hưng Đạo', members: 2, status: 'Đã xác minh' },
-  { id: 'HK-005', owner: 'Hoàng Văn Em', address: '8 Lý Thường Kiệt', members: 6, status: 'Đã xác minh' },
-];
-
 export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter households based on search term
-  const filteredHouseholds = mockHouseholds.filter((household) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      household.id.toLowerCase().includes(searchLower) ||
-      household.owner.toLowerCase().includes(searchLower) ||
-      household.address.toLowerCase().includes(searchLower)
-    );
-  });
+  useEffect(() => {
+    const fetchHouseholds = async () => {
+      try {
+        setLoading(true);
+        const response = await householdsService.getHouseholdsList({ q: searchTerm || undefined });
+        setHouseholds(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching households:', err);
+        setError('Không thể tải danh sách hộ khẩu');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(fetchHouseholds, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  const getStatusDisplay = (household: Household) => {
+    // Can be customized based on actual status field from backend
+    return household.head_id ? 'Đã xác minh' : 'Chờ xác minh';
+  };
+
+  const getMemberCount = (household: Household) => {
+    return household.nhan_khau?.length || 0;
+  };
 
   return (
     <LeaderLayout onLogout={onLogout}>
@@ -46,14 +61,14 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
           <Card className="border-2 border-[#212121]/10">
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-4">
-                <Button 
+                <Button
                   className="h-14 px-6 bg-[#0D47A1] hover:bg-[#0D47A1]/90 text-white"
                   onClick={() => navigate('/leader/households/create')}
                 >
                   <Plus className="w-6 h-6 mr-3" />
                   Thêm Hộ khẩu Mới
                 </Button>
-                
+
                 <div className="flex-1 min-w-[300px]">
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-[#212121]/50" />
@@ -71,10 +86,10 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
         </div>
 
         {/* Search Results Info */}
-        {searchTerm && (
+        {searchTerm && !loading && (
           <div className="mb-4">
             <p className="text-[#212121]">
-              Tìm thấy <strong>{filteredHouseholds.length}</strong> kết quả cho "{searchTerm}"
+              Tìm thấy <strong>{households.length}</strong> kết quả cho "{searchTerm}"
             </p>
           </div>
         )}
@@ -87,7 +102,14 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredHouseholds.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+                <span className="ml-3 text-[#212121]">Đang tải...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-[#B71C1C]">{error}</div>
+            ) : households.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow className="border-b-2 border-[#212121]/10">
@@ -100,23 +122,22 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredHouseholds.map((household) => (
+                  {households.map((household) => (
                     <TableRow key={household.id} className="border-b border-[#212121]/10">
                       <TableCell className="text-[#212121] h-16">
-                        <strong>{household.id}</strong>
+                        <strong>{household.household_number || household.id.slice(0, 8)}</strong>
                       </TableCell>
-                      <TableCell className="text-[#212121] h-16">{household.owner}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{household.head_name || 'Chưa có'}</TableCell>
                       <TableCell className="text-[#212121] h-16">{household.address}</TableCell>
-                      <TableCell className="text-[#212121] h-16">{household.members}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{getMemberCount(household)}</TableCell>
                       <TableCell className="h-16">
                         <span
-                          className={`px-4 py-2 rounded ${
-                            household.status === 'Đã xác minh'
+                          className={`px-4 py-2 rounded ${getStatusDisplay(household) === 'Đã xác minh'
                               ? 'bg-[#1B5E20] text-white'
                               : 'bg-[#FBC02D] text-[#212121]'
-                          }`}
+                            }`}
                         >
-                          {household.status}
+                          {getStatusDisplay(household)}
                         </span>
                       </TableCell>
                       <TableCell className="h-16">

@@ -90,7 +90,7 @@ async def update_feedback(
     feedback_id: str,
     db: AsyncSession = Depends(get_db),
     user_data: UserInfor = Depends(
-        JWTBearer(accepted_role_list=[UserRole.TO_TRUONG])
+        JWTBearer(accepted_role_list=[UserRole.TO_TRUONG, UserRole.CAN_BO_PHUONG])
     ),
 ):
     logger.info(

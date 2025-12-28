@@ -1,38 +1,48 @@
-import LeaderLayout from './LeaderLayout';
+import { Edit, Loader2, Plus, Search, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Resident, residentsService } from '../../services/residents-service';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { Input } from '../ui/input';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderResidentsProps {
   onLogout: () => void;
 }
 
-const mockResidents = [
-  { id: 1, name: 'Nguyễn Văn An', dob: '15/03/1985', cccd: '001085012345', household: 'HK-001', relation: 'Chủ hộ' },
-  { id: 2, name: 'Trần Thị Bình', dob: '22/07/1987', cccd: '001087023456', household: 'HK-001', relation: 'Vợ' },
-  { id: 3, name: 'Nguyễn Văn Cường', dob: '10/05/2010', cccd: '001010034567', household: 'HK-001', relation: 'Con trai' },
-  { id: 4, name: 'Nguyễn Thị Dung', dob: '18/09/2015', cccd: '', household: 'HK-001', relation: 'Con gái' },
-  { id: 5, name: 'Trần Văn Em', dob: '05/12/1990', cccd: '001090045678', household: 'HK-002', relation: 'Chủ hộ' },
-  { id: 6, name: 'Lê Thị Hoa', dob: '30/04/1992', cccd: '001092056789', household: 'HK-002', relation: 'Vợ' },
-];
-
 export default function LeaderResidents({ onLogout }: LeaderResidentsProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter residents based on search term
-  const filteredResidents = mockResidents.filter((resident) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      resident.name.toLowerCase().includes(searchLower) ||
-      resident.cccd.toLowerCase().includes(searchLower) ||
-      resident.household.toLowerCase().includes(searchLower)
-    );
-  });
+  useEffect(() => {
+    const fetchResidents = async () => {
+      try {
+        setLoading(true);
+        const response = await residentsService.getAll({ q: searchTerm || undefined });
+        setResidents(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching residents:', err);
+        setError('Không thể tải danh sách nhân khẩu');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Debounce search
+    const timeoutId = setTimeout(fetchResidents, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('vi-VN');
+  };
 
   return (
     <LeaderLayout onLogout={onLogout}>
@@ -47,19 +57,19 @@ export default function LeaderResidents({ onLogout }: LeaderResidentsProps) {
           <Card className="border-2 border-[#212121]/10">
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-4">
-                <Button 
+                <Button
                   className="h-14 px-6 bg-[#0D47A1] hover:bg-[#0D47A1]/90 text-white"
                   onClick={() => navigate('/leader/residents/create')}
                 >
                   <Plus className="w-6 h-6 mr-3" />
                   Thêm Nhân khẩu Mới
                 </Button>
-                
+
                 <div className="flex-1 min-w-[300px]">
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-[#212121]/50" />
                     <Input
-                      placeholder="Tìm kiếm theo tên, CCCD, số hộ khẩu..."
+                      placeholder="Tìm kiếm theo họ tên, số CCCD..."
                       className="h-14 pl-14 border-2 border-[#212121]/20 focus:border-[#0D47A1] focus:ring-[#0D47A1]"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -72,10 +82,10 @@ export default function LeaderResidents({ onLogout }: LeaderResidentsProps) {
         </div>
 
         {/* Search Results Info */}
-        {searchTerm && (
+        {searchTerm && !loading && (
           <div className="mb-4">
             <p className="text-[#212121]">
-              Tìm thấy <strong>{filteredResidents.length}</strong> kết quả cho "{searchTerm}"
+              Tìm thấy <strong>{residents.length}</strong> kết quả cho "{searchTerm}"
             </p>
           </div>
         )}
@@ -88,30 +98,33 @@ export default function LeaderResidents({ onLogout }: LeaderResidentsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredResidents.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+                <span className="ml-3 text-[#212121]">Đang tải...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-[#B71C1C]">{error}</div>
+            ) : residents.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow className="border-b-2 border-[#212121]/10">
                     <TableHead className="text-[#212121] h-14">Họ và tên</TableHead>
-                    <TableHead className="text-[#212121] h-14">Ngày sinh</TableHead>
                     <TableHead className="text-[#212121] h-14">Số CCCD</TableHead>
-                    <TableHead className="text-[#212121] h-14">Hộ khẩu</TableHead>
-                    <TableHead className="text-[#212121] h-14">Quan hệ với chủ hộ</TableHead>
+                    <TableHead className="text-[#212121] h-14">Ngày sinh</TableHead>
+                    <TableHead className="text-[#212121] h-14">Địa chỉ</TableHead>
                     <TableHead className="text-[#212121] h-14">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredResidents.map((resident) => (
+                  {residents.map((resident) => (
                     <TableRow key={resident.id} className="border-b border-[#212121]/10">
                       <TableCell className="text-[#212121] h-16">
-                        <strong>{resident.name}</strong>
+                        <strong>{resident.full_name}</strong>
                       </TableCell>
-                      <TableCell className="text-[#212121] h-16">{resident.dob}</TableCell>
-                      <TableCell className="text-[#212121] h-16">
-                        {resident.cccd || <em className="text-[#212121]/50">Chưa có</em>}
-                      </TableCell>
-                      <TableCell className="text-[#212121] h-16">{resident.household}</TableCell>
-                      <TableCell className="text-[#212121] h-16">{resident.relation}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{resident.cccd_number}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{formatDate(resident.date_of_birth)}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{resident.household?.address || 'Chưa có'}</TableCell>
                       <TableCell className="h-16">
                         <div className="flex gap-2">
                           <Button
