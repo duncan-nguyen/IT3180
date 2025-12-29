@@ -26,20 +26,18 @@ interface FeedbackItem {
 
 // Map backend status to display
 const STATUS_DISPLAY: Record<string, string> = {
-  'moi_ghi_nhan': 'Mới',
-  'dang_xu_ly': 'Đang xử lý',
-  'da_xu_ly': 'Đã giải quyết',
-  'da_huy': 'Đã hủy',
+  'MOI_GHI_NHAN': 'Mới',
+  'DANG_XU_LY': 'Đang xử lý',
+  'DA_GIAI_QUYET': 'Đã giải quyết',
+  'DONG': 'Đã đóng',
 };
 
 // Map backend category to display
 const CATEGORY_DISPLAY: Record<string, string> = {
-  'ha_tang': 'Hạ tầng',
-  'an_ninh': 'An ninh',
-  'moi_truong': 'Môi trường',
-  'y_te': 'Y tế',
-  'giao_duc': 'Giáo dục',
-  'khac': 'Khác',
+  'HA_TANG': 'Hạ tầng',
+  'AN_NINH': 'An ninh',
+  'MOI_TRUONG': 'Môi trường',
+  'KHAC': 'Khác',
 };
 
 export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
@@ -99,9 +97,10 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'da_xu_ly') return 'bg-[#1B5E20] text-white';
-    if (status === 'dang_xu_ly') return 'bg-[#0D47A1] text-white';
-    if (status === 'da_huy') return 'bg-[#B71C1C] text-white';
+    const s = status?.toUpperCase();
+    if (s === 'DA_GIAI_QUYET') return 'bg-[#1B5E20] text-white';
+    if (s === 'DANG_XU_LY') return 'bg-[#0D47A1] text-white';
+    if (s === 'DONG') return 'bg-[#B71C1C] text-white';
     return 'bg-[#FBC02D] text-[#212121]';
   };
 
@@ -152,9 +151,9 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                        <SelectItem value="moi_ghi_nhan">Mới</SelectItem>
-                        <SelectItem value="dang_xu_ly">Đang xử lý</SelectItem>
-                        <SelectItem value="da_xu_ly">Đã giải quyết</SelectItem>
+                        <SelectItem value="MOI_GHI_NHAN">Mới</SelectItem>
+                        <SelectItem value="DANG_XU_LY">Đang xử lý</SelectItem>
+                        <SelectItem value="DA_GIAI_QUYET">Đã giải quyết</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -166,9 +165,10 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả phân loại</SelectItem>
-                        <SelectItem value="ha_tang">Hạ tầng</SelectItem>
-                        <SelectItem value="an_ninh">An ninh</SelectItem>
-                        <SelectItem value="moi_truong">Môi trường</SelectItem>
+                        <SelectItem value="HA_TANG">Hạ tầng</SelectItem>
+                        <SelectItem value="AN_NINH">An ninh</SelectItem>
+                        <SelectItem value="MOI_TRUONG">Môi trường</SelectItem>
+                        <SelectItem value="KHAC">Khác</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

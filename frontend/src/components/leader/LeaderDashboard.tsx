@@ -1,32 +1,75 @@
-import LeaderLayout from './LeaderLayout';
+import { Loader2, MessageSquare, UserCircle, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { feedbackService } from '../../services/feedback-service';
+import { householdsService } from '../../services/households-service';
+import { residentsService } from '../../services/residents-service';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Users, UserCircle, MessageSquare } from 'lucide-react';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderDashboardProps {
   userName: string;
   onLogout: () => void;
 }
 
+interface DashboardStats {
+  householdCount: number;
+  residentCount: number;
+  newFeedbackCount: number;
+}
+
 export default function LeaderDashboard({ userName, onLogout }: LeaderDashboardProps) {
-  const stats = [
+  const [stats, setStats] = useState<DashboardStats>({
+    householdCount: 0,
+    residentCount: 0,
+    newFeedbackCount: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        // Fetch all stats in parallel
+        const [householdCountRes, residentsRes, feedbackRes] = await Promise.all([
+          householdsService.getHouseholdCount(),
+          residentsService.getAll({ limit: 1 }), // Get pagination info for total count
+          feedbackService.getAllFeedbacks({ status: 'MOI_GHI_NHAN' }),
+        ]);
+
+        setStats({
+          householdCount: householdCountRes || 0,
+          residentCount: residentsRes.pagination?.total || residentsRes.data?.length || 0,
+          newFeedbackCount: Array.isArray(feedbackRes) ? feedbackRes.length : 0,
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const statsDisplay = [
     {
       icon: Users,
       label: 'Tổng số Hộ khẩu',
-      value: '156',
+      value: stats.householdCount.toString(),
       color: 'text-[#0D47A1]',
       bgColor: 'bg-[#0D47A1]/10',
     },
     {
       icon: UserCircle,
       label: 'Tổng số Nhân khẩu',
-      value: '542',
+      value: stats.residentCount.toString(),
       color: 'text-[#0D47A1]',
       bgColor: 'bg-[#0D47A1]/10',
     },
     {
       icon: MessageSquare,
       label: 'Kiến nghị Mới (chưa xử lý)',
-      value: '12',
+      value: stats.newFeedbackCount.toString(),
       color: 'text-[#FBC02D]',
       bgColor: 'bg-[#FBC02D]/10',
     },
@@ -46,28 +89,35 @@ export default function LeaderDashboard({ userName, onLogout }: LeaderDashboardP
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index} className="border-2 border-[#212121]/10 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-4">
-                    <div className={`p-4 rounded-lg ${stat.bgColor}`}>
-                      <Icon className={`w-8 h-8 ${stat.color}`} />
-                    </div>
-                    <span className="text-[#212121]">{stat.label}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-5xl text-[#212121] ml-20">
-                    {stat.value}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+            <span className="ml-3 text-[#212121]">Đang tải thống kê...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {statsDisplay.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={index} className="border-2 border-[#212121]/10 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-4">
+                      <div className={`p-4 rounded-lg ${stat.bgColor}`}>
+                        <Icon className={`w-8 h-8 ${stat.color}`} />
+                      </div>
+                      <span className="text-[#212121]">{stat.label}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-5xl text-[#212121] ml-20">
+                      {stat.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {/* Quick Info */}
         <div className="mt-8">

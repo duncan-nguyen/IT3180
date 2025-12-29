@@ -92,5 +92,13 @@ export const residentsService = {
     async getMovementLogs(id: string) {
         const response = await residentsClient.get<{ data: any[] }>(`/residents/${id}/lich-su-bien-dong`);
         return response.data.data;
+    },
+
+    async getResidentsCount(toId?: string, phuongId?: string) {
+        const params: Record<string, string> = {};
+        if (toId) params.to_id = toId;
+        if (phuongId) params.phuong_id = phuongId;
+        const response = await residentsClient.get<{ data: number }>('/residents/count', { params });
+        return response.data.data;
     }
 };

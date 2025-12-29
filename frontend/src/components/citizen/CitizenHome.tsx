@@ -68,7 +68,7 @@ export default function CitizenHome({ userName, onLogout }: CitizenHomeProps) {
 
   const getStatusColor = (status: string) => {
     const s = status?.toUpperCase();
-    if (s === 'DA_GIAI_QUYET' || s === 'DA_XU_LY') return 'bg-[#1B5E20] text-white';
+    if (s === 'DA_GIAI_QUYET') return 'bg-[#1B5E20] text-white';
     if (s === 'DANG_XU_LY') return 'bg-[#0D47A1] text-white';
     return 'bg-[#FBC02D] text-[#212121]';
   };
