@@ -400,3 +400,334 @@ async def get_feedback_processing_time(
             status_code=500,
             detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
         )
+
+
+# ============== Ward-level Statistics (for Official/Cán bộ Phường) ==============
+
+OFFICIAL_ROLES = [UserRole.ADMIN, UserRole.CAN_BO_PHUONG]
+
+
+@router.get("/ward/overview", summary="Get ward-level overview statistics")
+async def get_ward_overview(
+    db: AsyncSession = Depends(get_db),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=OFFICIAL_ROLES)),
+):
+    """
+    Returns ward-level overview stats:
+    - Total neighborhood groups (Tổ dân phố)
+    - Total households
+    - Total residents
+    - Feedback this month
+    """
+    try:
+        # Total households
+        households_query = select(func.count()).select_from(Household).where(Household.is_active == True)
+        households_result = await db.execute(households_query)
+        total_households = households_result.scalar() or 0
+
+        # Total residents (active citizens)
+        residents_query = select(func.count()).select_from(Citizen).where(
+            and_(Citizen.is_active == True, Citizen.is_deceased == False)
+        )
+        residents_result = await db.execute(residents_query)
+        total_residents = residents_result.scalar() or 0
+
+        # Feedback this month
+        now = datetime.datetime.now()
+        first_day_of_month = datetime.datetime(now.year, now.month, 1)
+        
+        feedback_this_month_query = select(func.count()).select_from(Feedback).where(
+            Feedback.created_at >= first_day_of_month
+        )
+        feedback_result = await db.execute(feedback_this_month_query)
+        feedback_this_month = feedback_result.scalar() or 0
+
+        # Count distinct scope_ids (neighborhood groups)
+        scope_query = select(func.count(func.distinct(Household.scope_id))).select_from(Household).where(
+            and_(Household.is_active == True, Household.scope_id != None)
+        )
+        scope_result = await db.execute(scope_query)
+        total_groups = scope_result.scalar() or 0
+        
+        # Default to at least 1 if there are households
+        if total_groups == 0 and total_households > 0:
+            total_groups = 1
+
+        return {
+            "total_groups": total_groups,
+            "total_households": total_households,
+            "total_residents": total_residents,
+            "feedback_this_month": feedback_this_month,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.get("/ward/feedback-trend", summary="Get feedback trend for last N months")
+async def get_ward_feedback_trend(
+    months: int = 5,
+    db: AsyncSession = Depends(get_db),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=OFFICIAL_ROLES)),
+):
+    """
+    Returns feedback count (total and resolved) for each of the last N months
+    """
+    try:
+        result = []
+        now = datetime.datetime.now()
+        
+        for i in range(months - 1, -1, -1):
+            target_date = now - relativedelta(months=i)
+            month_start = datetime.datetime(target_date.year, target_date.month, 1)
+            if i == 0:
+                month_end = now
+            else:
+                next_month = month_start + relativedelta(months=1)
+                month_end = next_month - datetime.timedelta(seconds=1)
+            
+            month_name = f"Tháng {target_date.month}"
+            
+            # Total feedback in this month
+            total_query = select(func.count()).select_from(Feedback).where(
+                and_(
+                    Feedback.created_at >= month_start,
+                    Feedback.created_at <= month_end
+                )
+            )
+            total_result = await db.execute(total_query)
+            total_count = total_result.scalar() or 0
+            
+            # Resolved feedback in this month
+            resolved_query = select(func.count()).select_from(Feedback).where(
+                and_(
+                    Feedback.created_at >= month_start,
+                    Feedback.created_at <= month_end,
+                    Feedback.status == Status.da_giai_quyet.value
+                )
+            )
+            resolved_result = await db.execute(resolved_query)
+            resolved_count = resolved_result.scalar() or 0
+            
+            result.append({
+                "month": month_name,
+                "total": total_count,
+                "resolved": resolved_count,
+            })
+        
+        return {"data": result}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.get("/ward/feedback-by-area", summary="Get feedback count by neighborhood group")
+async def get_ward_feedback_by_area(
+    db: AsyncSession = Depends(get_db),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=OFFICIAL_ROLES)),
+):
+    """
+    Returns feedback count grouped by scope_id (neighborhood group)
+    """
+    try:
+        # Get current month
+        now = datetime.datetime.now()
+        first_day_of_month = datetime.datetime(now.year, now.month, 1)
+        
+        query = select(
+            Feedback.scope_id,
+            func.count(Feedback.id).label("count")
+        ).where(
+            Feedback.created_at >= first_day_of_month
+        ).group_by(Feedback.scope_id)
+        
+        result = await db.execute(query)
+        rows = result.all()
+
+        data = []
+        area_index = 1
+        for row in rows:
+            area_name = f"Tổ {area_index}" if not row.scope_id else f"Tổ {row.scope_id[:4]}"
+            data.append({
+                "area": area_name,
+                "scope_id": row.scope_id,
+                "count": row.count,
+            })
+            area_index += 1
+
+        # If no data, return empty
+        if not data:
+            data = [{"area": "Chưa có dữ liệu", "scope_id": None, "count": 0}]
+
+        return {"data": data, "month": now.month}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.get("/ward/feedback-by-agency", summary="Get feedback count by responding agency")
+async def get_ward_feedback_by_agency(
+    db: AsyncSession = Depends(get_db),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=OFFICIAL_ROLES)),
+):
+    """
+    Returns feedback statistics grouped by category (as proxy for agency)
+    """
+    try:
+        # Group by category as proxy for agency
+        query = select(
+            Feedback.category,
+            func.count(Feedback.id).label("total"),
+        ).group_by(Feedback.category)
+        
+        result = await db.execute(query)
+        rows = result.all()
+
+        # Also count resolved per category
+        resolved_query = select(
+            Feedback.category,
+            func.count(Feedback.id).label("resolved"),
+        ).where(
+            Feedback.status == Status.da_giai_quyet.value
+        ).group_by(Feedback.category)
+        
+        resolved_result = await db.execute(resolved_query)
+        resolved_rows = resolved_result.all()
+        
+        resolved_map = {r.category: r.resolved for r in resolved_rows}
+
+        # Map categories to agency names
+        agency_names = {
+            Category.an_ninh.value: "Công an Phường",
+            Category.ha_tang.value: "Điện lực / Hạ tầng",
+            Category.moi_truong.value: "Môi trường & Đô thị",
+            Category.khac.value: "Khác",
+            "AN_NINH": "Công an Phường",
+            "HA_TANG": "Điện lực / Hạ tầng",
+            "MOI_TRUONG": "Môi trường & Đô thị",
+            "KHAC": "Khác",
+        }
+
+        data = []
+        for row in rows:
+            if row.category:
+                agency = agency_names.get(row.category, row.category)
+                resolved = resolved_map.get(row.category, 0)
+                pending = row.total - resolved
+                data.append({
+                    "agency": agency,
+                    "total": row.total,
+                    "resolved": resolved,
+                    "pending": max(pending, 0),
+                })
+
+        return {"data": data}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.get("/ward/efficiency", summary="Get ward efficiency statistics")
+async def get_ward_efficiency(
+    db: AsyncSession = Depends(get_db),
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=OFFICIAL_ROLES)),
+):
+    """
+    Returns efficiency stats for the ward:
+    - Total feedback this year
+    - Resolved count and percentage
+    - In progress count and percentage
+    - Pending count and percentage
+    - Average response time
+    """
+    try:
+        # Current year
+        now = datetime.datetime.now()
+        year_start = datetime.datetime(now.year, 1, 1)
+        
+        # Total feedback this year
+        total_query = select(func.count()).select_from(Feedback).where(
+            Feedback.created_at >= year_start
+        )
+        total_result = await db.execute(total_query)
+        total_year = total_result.scalar() or 0
+
+        # By status
+        resolved_query = select(func.count()).select_from(Feedback).where(
+            and_(
+                Feedback.created_at >= year_start,
+                Feedback.status == Status.da_giai_quyet.value
+            )
+        )
+        resolved_result = await db.execute(resolved_query)
+        resolved_count = resolved_result.scalar() or 0
+
+        in_progress_query = select(func.count()).select_from(Feedback).where(
+            and_(
+                Feedback.created_at >= year_start,
+                Feedback.status == Status.dang_xu_ly.value
+            )
+        )
+        in_progress_result = await db.execute(in_progress_query)
+        in_progress_count = in_progress_result.scalar() or 0
+
+        pending_query = select(func.count()).select_from(Feedback).where(
+            and_(
+                Feedback.created_at >= year_start,
+                Feedback.status == Status.moi_ghi_nhan.value
+            )
+        )
+        pending_result = await db.execute(pending_query)
+        pending_count = pending_result.scalar() or 0
+
+        # Calculate percentages
+        resolved_pct = round((resolved_count / total_year * 100)) if total_year > 0 else 0
+        in_progress_pct = round((in_progress_count / total_year * 100)) if total_year > 0 else 0
+        pending_pct = round((pending_count / total_year * 100)) if total_year > 0 else 0
+
+        # Average response time for resolved feedback
+        resolved_feedbacks_query = select(Feedback).where(
+            and_(
+                Feedback.status == Status.da_giai_quyet.value,
+                Feedback.created_at >= year_start
+            )
+        )
+        resolved_feedbacks_result = await db.execute(resolved_feedbacks_query)
+        resolved_feedbacks = resolved_feedbacks_result.scalars().all()
+
+        total_days = 0
+        count_with_dates = 0
+        for fb in resolved_feedbacks:
+            if fb.created_at and fb.updated_at:
+                days = (fb.updated_at - fb.created_at).days
+                total_days += max(days, 1)
+                count_with_dates += 1
+
+        avg_response_days = round(total_days / count_with_dates, 1) if count_with_dates > 0 else 0
+
+        return {
+            "total_year": total_year,
+            "year": now.year,
+            "resolved": {"count": resolved_count, "percentage": resolved_pct},
+            "in_progress": {"count": in_progress_count, "percentage": in_progress_pct},
+            "pending": {"count": pending_count, "percentage": pending_pct},
+            "avg_response_days": avg_response_days,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )

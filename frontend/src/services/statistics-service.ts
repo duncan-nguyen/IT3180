@@ -48,6 +48,42 @@ export interface ProcessingTimeItem {
   avg_days: number;
 }
 
+// Ward-level statistics interfaces
+export interface WardOverviewStats {
+  total_groups: number;
+  total_households: number;
+  total_residents: number;
+  feedback_this_month: number;
+}
+
+export interface FeedbackTrendItem {
+  month: string;
+  total: number;
+  resolved: number;
+}
+
+export interface FeedbackByAreaItem {
+  area: string;
+  scope_id: string | null;
+  count: number;
+}
+
+export interface FeedbackByAgencyItem {
+  agency: string;
+  total: number;
+  resolved: number;
+  pending: number;
+}
+
+export interface WardEfficiencyStats {
+  total_year: number;
+  year: number;
+  resolved: { count: number; percentage: number };
+  in_progress: { count: number; percentage: number };
+  pending: { count: number; percentage: number };
+  avg_response_days: number;
+}
+
 export const statisticsService = {
   /**
    * Get overview statistics for dashboard
@@ -97,6 +133,50 @@ export const statisticsService = {
   async getFeedbackProcessingTime(): Promise<ProcessingTimeItem[]> {
     const response = await authClient.get<{ data: ProcessingTimeItem[] }>('/statistics/feedback/processing-time');
     return response.data.data;
+  },
+
+  // ============== Ward-level Statistics (for Official/Cán bộ Phường) ==============
+
+  /**
+   * Get ward-level overview statistics
+   */
+  async getWardOverview(): Promise<WardOverviewStats> {
+    const response = await authClient.get<WardOverviewStats>('/statistics/ward/overview');
+    return response.data;
+  },
+
+  /**
+   * Get feedback trend for last N months (total and resolved)
+   */
+  async getWardFeedbackTrend(months: number = 5): Promise<FeedbackTrendItem[]> {
+    const response = await authClient.get<{ data: FeedbackTrendItem[] }>('/statistics/ward/feedback-trend', {
+      params: { months },
+    });
+    return response.data.data;
+  },
+
+  /**
+   * Get feedback count by neighborhood group (area)
+   */
+  async getWardFeedbackByArea(): Promise<{ data: FeedbackByAreaItem[]; month: number }> {
+    const response = await authClient.get<{ data: FeedbackByAreaItem[]; month: number }>('/statistics/ward/feedback-by-area');
+    return response.data;
+  },
+
+  /**
+   * Get feedback statistics by agency/category
+   */
+  async getWardFeedbackByAgency(): Promise<FeedbackByAgencyItem[]> {
+    const response = await authClient.get<{ data: FeedbackByAgencyItem[] }>('/statistics/ward/feedback-by-agency');
+    return response.data.data;
+  },
+
+  /**
+   * Get ward efficiency statistics
+   */
+  async getWardEfficiency(): Promise<WardEfficiencyStats> {
+    const response = await authClient.get<WardEfficiencyStats>('/statistics/ward/efficiency');
+    return response.data;
   },
 };
 

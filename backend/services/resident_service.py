@@ -1,9 +1,11 @@
 from typing import Any, Dict
 
-from database import AsyncSessionLocal, DbResponse
-from models import Citizen, Household, MovementLog
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import joinedload
+
+from core.utils import hash_pw
+from database import AsyncSessionLocal, DbResponse
+from models import Citizen, Household, MovementLog, User
 
 
 class ResidentService:
@@ -15,6 +17,26 @@ class ResidentService:
             session.add(citizen)
             await session.commit()
             await session.refresh(citizen)
+
+            # Auto-create user account for citizen
+            # Username = CCCD, Password = CCCD
+            cccd_number = data.get("cccd_number")
+            if cccd_number:
+                # Check if user with this CCCD already exists
+                existing_user = await session.execute(
+                    select(User).where(User.username == cccd_number)
+                )
+                if not existing_user.scalar_one_or_none():
+                    user = User(
+                        username=cccd_number,
+                        password_hash=hash_pw(cccd_number),
+                        role="nguoi_dan",
+                        scope_id=str(citizen.id),
+                        active=True,
+                    )
+                    session.add(user)
+                    await session.commit()
+
             return DbResponse(data=citizen.as_dict())
 
     @staticmethod

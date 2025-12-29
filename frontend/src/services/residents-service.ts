@@ -106,5 +106,45 @@ export const residentsService = {
         if (phuongId) params.phuong_id = phuongId;
         const response = await residentsClient.get<{ data: number }>('/residents/count', { params });
         return response.data.data;
+    },
+
+    // ==================== CITIZEN SELF-SERVICE METHODS ====================
+
+    /**
+     * Get current citizen's information
+     */
+    async getMyInfo() {
+        const response = await residentsClient.get<{ data: Resident }>('/residents/me');
+        return response.data.data;
+    },
+
+    /**
+     * Update current citizen's non-critical information
+     */
+    async updateMyInfo(data: CitizenSelfUpdateData) {
+        const response = await residentsClient.put<{ data: Resident; message: string }>('/residents/me', data);
+        return response.data;
+    },
+
+    /**
+     * Change current citizen's password
+     */
+    async changeMyPassword(oldPassword: string, newPassword: string) {
+        const response = await residentsClient.post<{ message: string }>('/residents/me/change-password', {
+            old_password: oldPassword,
+            new_password: newPassword
+        });
+        return response.data;
     }
 };
+
+/**
+ * Data for citizen to update their own non-critical information
+ */
+export interface CitizenSelfUpdateData {
+    place_of_birth?: string;
+    hometown?: string;
+    ethnicity?: string;
+    occupation?: string;
+    workplace?: string;
+}

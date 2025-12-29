@@ -1,4 +1,4 @@
-import { LogOut, MessageSquarePlus, Users } from 'lucide-react';
+import { LogOut, MessageSquarePlus, User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { feedbackClient, residentsClient } from '../../api/client';
@@ -97,14 +97,25 @@ export default function CitizenHome({ userName, onLogout }: CitizenHomeProps) {
           <h1 className="text-[#212121] text-xl font-bold">
             Chào mừng {userName}
           </h1>
-          <Button
-            onClick={onLogout}
-            variant="outline"
-            className="h-14 px-6 border-2 border-[#212121]/20 hover:bg-[#F5F5F5]"
-          >
-            <LogOut className="w-6 h-6 mr-3" />
-            Đăng xuất
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link to="/citizen/profile">
+              <Button
+                variant="outline"
+                className="h-14 px-6 border-2 border-[#0D47A1]/30 hover:bg-[#0D47A1]/5 text-[#0D47A1]"
+              >
+                <User className="w-6 h-6 mr-3" />
+                Thông tin cá nhân
+              </Button>
+            </Link>
+            <Button
+              onClick={onLogout}
+              variant="outline"
+              className="h-14 px-6 border-2 border-[#212121]/20 hover:bg-[#F5F5F5]"
+            >
+              <LogOut className="w-6 h-6 mr-3" />
+              Đăng xuất
+            </Button>
+          </div>
         </div>
       </header>
 

@@ -1,35 +1,37 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Login from './components/Login';
-import CitizenHome from './components/citizen/CitizenHome';
-import CitizenSubmitFeedback from './components/citizen/CitizenSubmitFeedback';
-import LeaderDashboard from './components/leader/LeaderDashboard';
-import LeaderHouseholds from './components/leader/LeaderHouseholds';
-import LeaderHouseholdCreate from './components/leader/LeaderHouseholdCreate';
-import LeaderHouseholdEdit from './components/leader/LeaderHouseholdEdit';
-import LeaderHouseholdDelete from './components/leader/LeaderHouseholdDelete';
-import LeaderResidents from './components/leader/LeaderResidents';
-import LeaderResidentCreate from './components/leader/LeaderResidentCreate';
-import LeaderResidentEdit from './components/leader/LeaderResidentEdit';
-import LeaderResidentDelete from './components/leader/LeaderResidentDelete';
-import LeaderFeedback from './components/leader/LeaderFeedback';
-import LeaderFeedbackCreate from './components/leader/LeaderFeedbackCreate';
-import LeaderReports from './components/leader/LeaderReports';
-import OfficialFeedbackList from './components/official/OfficialFeedbackList';
-import OfficialFeedbackDetail from './components/official/OfficialFeedbackDetail';
-import OfficialReports from './components/official/OfficialReports';
-import AdminAccounts from './components/admin/AdminAccounts';
 import AdminAccountCreate from './components/admin/AdminAccountCreate';
 import AdminAccountEdit from './components/admin/AdminAccountEdit';
-import AdminAccountResetPassword from './components/admin/AdminAccountResetPassword';
 import AdminAccountLock from './components/admin/AdminAccountLock';
-import AdminRoles from './components/admin/AdminRoles';
-import AdminRoleEdit from './components/admin/AdminRoleEdit';
-import AdminRoleDetail from './components/admin/AdminRoleDetail';
-import AdminRoleDelete from './components/admin/AdminRoleDelete';
-import AdminSettings from './components/admin/AdminSettings';
+import AdminAccountResetPassword from './components/admin/AdminAccountResetPassword';
+import AdminAccounts from './components/admin/AdminAccounts';
 import AdminLogs from './components/admin/AdminLogs';
 import AdminLogsExport from './components/admin/AdminLogsExport';
+import AdminRoleDelete from './components/admin/AdminRoleDelete';
+import AdminRoleDetail from './components/admin/AdminRoleDetail';
+import AdminRoleEdit from './components/admin/AdminRoleEdit';
+import AdminRoles from './components/admin/AdminRoles';
+import AdminSettings from './components/admin/AdminSettings';
+import CitizenChangePassword from './components/citizen/CitizenChangePassword';
+import CitizenHome from './components/citizen/CitizenHome';
+import CitizenProfile from './components/citizen/CitizenProfile';
+import CitizenSubmitFeedback from './components/citizen/CitizenSubmitFeedback';
+import LeaderDashboard from './components/leader/LeaderDashboard';
+import LeaderFeedback from './components/leader/LeaderFeedback';
+import LeaderFeedbackCreate from './components/leader/LeaderFeedbackCreate';
+import LeaderHouseholdCreate from './components/leader/LeaderHouseholdCreate';
+import LeaderHouseholdDelete from './components/leader/LeaderHouseholdDelete';
+import LeaderHouseholdEdit from './components/leader/LeaderHouseholdEdit';
+import LeaderHouseholds from './components/leader/LeaderHouseholds';
+import LeaderReports from './components/leader/LeaderReports';
+import LeaderResidentCreate from './components/leader/LeaderResidentCreate';
+import LeaderResidentDelete from './components/leader/LeaderResidentDelete';
+import LeaderResidentEdit from './components/leader/LeaderResidentEdit';
+import LeaderResidents from './components/leader/LeaderResidents';
+import OfficialFeedbackDetail from './components/official/OfficialFeedbackDetail';
+import OfficialFeedbackList from './components/official/OfficialFeedbackList';
+import OfficialReports from './components/official/OfficialReports';
 
 export type UserRole = 'citizen' | 'leader' | 'official' | 'admin' | null;
 
@@ -60,6 +62,12 @@ function App() {
         } />
         <Route path="/citizen/submit-feedback" element={
           userRole === 'citizen' ? <CitizenSubmitFeedback onLogout={handleLogout} /> : <Navigate to="/" />
+        } />
+        <Route path="/citizen/profile" element={
+          userRole === 'citizen' ? <CitizenProfile onLogout={handleLogout} /> : <Navigate to="/" />
+        } />
+        <Route path="/citizen/change-password" element={
+          userRole === 'citizen' ? <CitizenChangePassword onLogout={handleLogout} /> : <Navigate to="/" />
         } />
 
         {/* Leader Routes */}

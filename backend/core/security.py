@@ -2,9 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import HTTPException
-from models import AuditLog, User
-from schemas.auth import AuditLogForm, UserInfor, UserRole
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import (
@@ -14,11 +12,15 @@ from core.config import (
     SECRET_KEY,
 )
 from core.utils import verify_pw
+from models import AuditLog, User
+from models.citizen import Citizen
+from schemas.auth import AuditLogForm, UserInfor, UserRole
 
 
 async def authenticate_user(
     username: str, password: str, db: AsyncSession
 ) -> str | None:
+    # Try to find user by username (CCCD for citizens, email for admin/officials)
     query = select(User).where(User.username == username)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
