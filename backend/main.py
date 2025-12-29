@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, roles, logs, households, residents, feedback
+
+from routers import auth, feedback, households, logs, residents, roles, statistics
 
 app = FastAPI(title="Citizen Management API")
 
@@ -24,6 +25,9 @@ app.include_router(residents.router, prefix="/api/v1", tags=["Residents"])
 
 # Feedback routes
 app.include_router(feedback.router, prefix="/api/v1", tags=["Feedback"])
+
+# Statistics routes
+app.include_router(statistics.router, prefix="/api/v1", tags=["Statistics"])
 
 
 @app.get("/health")

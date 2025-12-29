@@ -93,17 +93,20 @@ export const authService = {
     },
 
     async updateUser(id: string, data: UserUpdateData) {
-        const response = await authClient.put(`/users/${id}`, { update_data: data });
+        // Backend uses POST /users/{id}
+        const response = await authClient.post(`/users/${id}`, { update_data: data });
         return response.data;
     },
 
     async deleteUser(id: string) {
-        const response = await authClient.delete(`/users/${id}`);
+        // Backend uses DELETE /users/{id}/delete
+        const response = await authClient.delete(`/users/${id}/delete`);
         return response.data;
     },
 
     async lockUser(id: string) {
-        const response = await authClient.put(`/users/${id}/lock`);
+        // Backend uses POST /users/{id}/lock
+        const response = await authClient.post(`/users/${id}/lock`);
         return response.data;
     },
 

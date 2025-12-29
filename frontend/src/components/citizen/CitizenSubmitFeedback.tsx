@@ -138,8 +138,6 @@ export default function CitizenSubmitFeedback({ onLogout }: CitizenSubmitFeedbac
                     <SelectItem value="infrastructure">Hạ tầng (Đường xá, điện, nước)</SelectItem>
                     <SelectItem value="security">An ninh trật tự</SelectItem>
                     <SelectItem value="environment">Môi trường</SelectItem>
-                    <SelectItem value="healthcare">Y tế</SelectItem>
-                    <SelectItem value="education">Giáo dục</SelectItem>
                     <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>

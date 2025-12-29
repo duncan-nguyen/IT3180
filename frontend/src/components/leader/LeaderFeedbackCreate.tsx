@@ -1,12 +1,15 @@
-import LeaderLayout from './LeaderLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { AlertCircle, ArrowLeft, Loader2, MessageSquare, Save, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { feedbackService } from '../../services/feedback-service';
+import { Resident, residentsService } from '../../services/residents-service';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowLeft, Save, MessageSquare, User, MapPin, AlertCircle, FileText, Upload } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Textarea } from '../ui/textarea';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderFeedbackCreateProps {
   onLogout: () => void;
@@ -14,6 +17,108 @@ interface LeaderFeedbackCreateProps {
 
 export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateProps) {
   const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [residents, setResidents] = useState<Resident[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Form state
+  const [formData, setFormData] = useState({
+    selectedResidentId: '',
+    content: '',
+    category: '',
+  });
+
+  useEffect(() => {
+    loadResidents();
+  }, []);
+
+  const loadResidents = async () => {
+    try {
+      setLoading(true);
+      const response = await residentsService.getAll({ limit: 100 });
+      setResidents(response.data || []);
+    } catch (err) {
+      console.error('Error loading residents:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      loadResidents();
+      return;
+    }
+    try {
+      setLoading(true);
+      const data = await residentsService.search(searchQuery);
+      // Map search results to Resident format
+      const mappedResidents = data.map((item: any) => ({
+        id: item.id,
+        full_name: item.ho_ten,
+        date_of_birth: '',
+        cccd_number: '',
+        household: item.dia_chi ? { id: '', address: item.dia_chi } : undefined
+      }));
+      setResidents(mappedResidents);
+    } catch (err) {
+      console.error('Error searching residents:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.selectedResidentId) {
+      setError('Vui lòng chọn người phản ánh');
+      return;
+    }
+    if (!formData.content.trim()) {
+      setError('Vui lòng nhập nội dung kiến nghị');
+      return;
+    }
+    if (!formData.category) {
+      setError('Vui lòng chọn phân loại');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      await feedbackService.createFeedback({
+        noi_dung: formData.content,
+        phan_loai: formData.category,
+        nguoi_phan_anh: {
+          nhankhau_id: formData.selectedResidentId
+        }
+      });
+
+      setSuccessMessage('Tạo kiến nghị thành công!');
+      
+      // Navigate back after 1.5s
+      setTimeout(() => {
+        navigate('/leader/feedback');
+      }, 1500);
+    } catch (err: any) {
+      console.error('Error creating feedback:', err);
+      setError(err.response?.data?.detail?.error?.message || 'Không thể tạo kiến nghị. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedResident = residents.find(r => r.id === formData.selectedResidentId);
 
   return (
     <LeaderLayout onLogout={onLogout}>
@@ -28,13 +133,30 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </Button>
-          <h1 className="text-[#212121] mb-3">
+          <h1 className="text-[#212121] mb-3 text-2xl font-bold">
             Ghi nhận Kiến nghị Mới
           </h1>
           <p className="text-[#212121]">
             Ghi nhận kiến nghị từ người dân trong khu vực quản lý
           </p>
         </div>
+
+        {/* Error/Success Messages */}
+        {error && (
+          <Card className="mb-6 border-2 border-[#B71C1C]/40 bg-[#B71C1C]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#B71C1C]">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {successMessage && (
+          <Card className="mb-6 border-2 border-[#1B5E20]/40 bg-[#1B5E20]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#1B5E20]">{successMessage}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form */}
@@ -54,94 +176,71 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
               <CardContent className="space-y-6">
                 <div className="p-4 bg-[#0D47A1]/5 border-2 border-[#0D47A1]/20 rounded-lg">
                   <p className="text-[#212121] mb-3">
-                    Chọn người phản ánh từ danh sách nhân khẩu hoặc nhập thủ công
+                    Tìm và chọn người phản ánh từ danh sách nhân khẩu
                   </p>
+                  
+                  {/* Search */}
+                  <div className="flex gap-2 mb-4">
+                    <Input
+                      placeholder="Tìm theo tên hoặc CCCD..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSearch}
+                      className="h-12"
+                      disabled={loading}
+                    >
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Tìm'}
+                    </Button>
+                  </div>
+
                   <div className="space-y-3">
                     <Label htmlFor="select-resident" className="text-[#212121]">
-                      Chọn từ danh sách Nhân khẩu
+                      Chọn từ danh sách Nhân khẩu <span className="text-[#B71C1C]">*</span>
                     </Label>
-                    <Select>
+                    <Select 
+                      value={formData.selectedResidentId}
+                      onValueChange={(value) => handleInputChange('selectedResidentId', value)}
+                    >
                       <SelectTrigger id="select-resident" className="h-12 border-2 border-[#212121]/20">
                         <SelectValue placeholder="Chọn người phản ánh..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">--- Nhập thủ công ---</SelectItem>
-                        <SelectItem value="1">Nguyễn Văn An (HK-001) - 0912345678</SelectItem>
-                        <SelectItem value="2">Trần Thị Bình (HK-001) - 0923456789</SelectItem>
-                        <SelectItem value="3">Lê Văn Cường (HK-002) - 0934567890</SelectItem>
-                        <SelectItem value="4">Phạm Thị Dung (HK-003) - 0945678901</SelectItem>
-                        <SelectItem value="5">Hoàng Văn Em (HK-004) - 0956789012</SelectItem>
+                        {residents.map((resident) => (
+                          <SelectItem key={resident.id} value={resident.id}>
+                            {resident.full_name} 
+                            {resident.household?.address && ` - ${resident.household.address}`}
+                          </SelectItem>
+                        ))}
+                        {residents.length === 0 && (
+                          <SelectItem value="_empty" disabled>
+                            Không tìm thấy nhân khẩu
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="reporter-name" className="text-[#212121]">
-                    Họ và tên <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Input
-                    id="reporter-name"
-                    placeholder="VD: Nguyễn Văn An"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                  <p className="text-sm text-[#212121]">
-                    Tự động điền nếu chọn từ danh sách nhân khẩu
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="reporter-phone" className="text-[#212121]">
-                      Số điện thoại <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Input
-                      id="reporter-phone"
-                      placeholder="VD: 0912345678"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
+                {/* Display selected resident info */}
+                {selectedResident && (
+                  <div className="p-4 bg-[#1B5E20]/10 border-2 border-[#1B5E20]/20 rounded-lg">
+                    <p className="text-[#1B5E20] font-semibold mb-2">Người phản ánh đã chọn:</p>
+                    <p className="text-[#212121]">
+                      <strong>{selectedResident.full_name}</strong>
+                    </p>
+                    {selectedResident.cccd_number && (
+                      <p className="text-sm text-[#212121]/70">CCCD: {selectedResident.cccd_number}</p>
+                    )}
+                    {selectedResident.household?.address && (
+                      <p className="text-sm text-[#212121]/70">Địa chỉ: {selectedResident.household.address}</p>
+                    )}
                   </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="reporter-household" className="text-[#212121]">
-                      Số hộ khẩu
-                    </Label>
-                    <Input
-                      id="reporter-household"
-                      placeholder="VD: HK-001"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="reporter-address" className="text-[#212121]">
-                    Địa chỉ
-                  </Label>
-                  <Input
-                    id="reporter-address"
-                    placeholder="VD: 25 Nguyễn Trãi, Phường Đống Đa"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="contact-method" className="text-[#212121]">
-                    Hình thức tiếp nhận <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Select defaultValue="in-person">
-                    <SelectTrigger id="contact-method" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in-person">Gặp trực tiếp</SelectItem>
-                      <SelectItem value="phone">Qua điện thoại</SelectItem>
-                      <SelectItem value="visit">Thăm hộ gia đình</SelectItem>
-                      <SelectItem value="meeting">Tại cuộc họp</SelectItem>
-                      <SelectItem value="other">Khác</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -159,14 +258,23 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
-                  <Label htmlFor="title" className="text-[#212121]">
-                    Tiêu đề <span className="text-[#B71C1C]">*</span>
+                  <Label htmlFor="category" className="text-[#212121]">
+                    Phân loại <span className="text-[#B71C1C]">*</span>
                   </Label>
-                  <Input
-                    id="title"
-                    placeholder="VD: Đèn đường khu vực ngõ 25 bị hỏng"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => handleInputChange('category', value)}
+                  >
+                    <SelectTrigger id="category" className="h-12 border-2 border-[#212121]/20">
+                      <SelectValue placeholder="Chọn phân loại..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HA_TANG">Hạ tầng</SelectItem>
+                      <SelectItem value="MOI_TRUONG">Môi trường</SelectItem>
+                      <SelectItem value="AN_NINH">An ninh trật tự</SelectItem>
+                      <SelectItem value="KHAC">Khác</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-3">
@@ -175,202 +283,14 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
                   </Label>
                   <Textarea
                     id="content"
+                    value={formData.content}
+                    onChange={(e) => handleInputChange('content', e.target.value)}
                     placeholder="Mô tả chi tiết về vấn đề, thời gian xảy ra, mức độ ảnh hưởng..."
                     className="min-h-[200px] border-2 border-[#212121]/20"
                   />
-                  <p className="text-sm text-[#212121]">
+                  <p className="text-sm text-[#212121]/70">
                     Ghi chép đầy đủ thông tin từ người phản ánh
                   </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="category" className="text-[#212121]">
-                      Phân loại <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Select>
-                      <SelectTrigger id="category" className="h-12 border-2 border-[#212121]/20">
-                        <SelectValue placeholder="Chọn phân loại..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="infrastructure">Hạ tầng</SelectItem>
-                        <SelectItem value="environment">Môi trường</SelectItem>
-                        <SelectItem value="security">An ninh trật tự</SelectItem>
-                        <SelectItem value="traffic">Giao thông</SelectItem>
-                        <SelectItem value="education">Giáo dục</SelectItem>
-                        <SelectItem value="health">Y tế</SelectItem>
-                        <SelectItem value="social">Phúc lợi xã hội</SelectItem>
-                        <SelectItem value="administrative">Thủ tục hành chính</SelectItem>
-                        <SelectItem value="other">Khác</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="priority" className="text-[#212121]">
-                      Mức độ ưu tiên <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Select defaultValue="medium">
-                      <SelectTrigger id="priority" className="h-12 border-2 border-[#212121]/20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="urgent">Khẩn cấp (Cần xử lý ngay)</SelectItem>
-                        <SelectItem value="high">Cao (Trong vòng 1 tuần)</SelectItem>
-                        <SelectItem value="medium">Trung bình (Trong vòng 1 tháng)</SelectItem>
-                        <SelectItem value="low">Thấp (Theo kế hoạch)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="deadline-request" className="text-[#212121]">
-                    Thời hạn mong muốn
-                  </Label>
-                  <input
-                    id="deadline-request"
-                    type="date"
-                    className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
-                  />
-                  <p className="text-sm text-[#212121]">
-                    Thời hạn người dân mong muốn vấn đề được giải quyết
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Location Information */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#0D47A1]/10">
-                    <MapPin className="w-6 h-6 text-[#0D47A1]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    Vị trí Sự việc
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="location-detail" className="text-[#212121]">
-                    Địa điểm cụ thể <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Input
-                    id="location-detail"
-                    placeholder="VD: Ngõ 25 Nguyễn Trãi, đối diện số nhà 30"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="location-note" className="text-[#212121]">
-                    Mô tả thêm về vị trí
-                  </Label>
-                  <Textarea
-                    id="location-note"
-                    placeholder="VD: Gần cây đa, cạnh cổng trường tiểu học..."
-                    className="min-h-[100px] border-2 border-[#212121]/20"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Attachments */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#0D47A1]/10">
-                    <Upload className="w-6 h-6 text-[#0D47A1]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    File đính kèm
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="attachments" className="text-[#212121]">
-                    Hình ảnh hoặc tài liệu liên quan
-                  </Label>
-                  <div className="border-2 border-dashed border-[#212121]/20 rounded-lg p-8 text-center">
-                    <Upload className="w-12 h-12 mx-auto mb-4 text-[#212121]/50" />
-                    <p className="text-[#212121] mb-2">
-                      Kéo thả file vào đây hoặc nhấn để chọn
-                    </p>
-                    <p className="text-sm text-[#212121]">
-                      Hỗ trợ: JPG, PNG, PDF (tối đa 10MB mỗi file)
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="h-12 mt-4 border-2 border-[#212121]/20"
-                    >
-                      Chọn File
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-[#212121]">
-                    File đã chọn
-                  </Label>
-                  <div className="p-4 bg-[#F5F5F5] rounded-lg text-center text-sm text-[#212121]">
-                    Chưa có file nào được chọn
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Leader Notes */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#0D47A1]/10">
-                    <FileText className="w-6 h-6 text-[#0D47A1]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    Ghi chú của Tổ trưởng
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="leader-note" className="text-[#212121]">
-                    Nhận xét ban đầu
-                  </Label>
-                  <Textarea
-                    id="leader-note"
-                    placeholder="VD: Đã kiểm tra hiện trường, vấn đề đúng như phản ánh. Cần báo cáo lên cấp trên để xử lý..."
-                    className="min-h-[150px] border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="suggested-action" className="text-[#212121]">
-                    Đề xuất hướng xử lý
-                  </Label>
-                  <Textarea
-                    id="suggested-action"
-                    placeholder="VD: Đề xuất báo cáo lên Phòng Quản lý đô thị để sửa chữa đèn đường..."
-                    className="min-h-[100px] border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="initial-status" className="text-[#212121]">
-                    Trạng thái ban đầu <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Select defaultValue="new">
-                    <SelectTrigger id="initial-status" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">Mới - Chờ xử lý</SelectItem>
-                      <SelectItem value="processing">Đang xử lý - Đã báo cáo lên cấp trên</SelectItem>
-                      <SelectItem value="need-info">Cần bổ sung thông tin</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -386,59 +306,36 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90">
-                  <Save className="w-5 h-5 mr-2" />
-                  Lưu Kiến nghị
+                <Button 
+                  className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                  onClick={handleSubmit}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5 mr-2" />
+                      Lưu Kiến nghị
+                    </>
+                  )}
                 </Button>
 
                 <Button
                   variant="outline"
                   onClick={() => navigate('/leader/feedback')}
                   className="w-full h-14 border-2 border-[#212121]/20"
+                  disabled={saving}
                 >
                   Hủy
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Quick Info */}
-            <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
-              <CardHeader>
-                <CardTitle className="text-[#212121]">
-                  Thông tin Nhanh
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-white rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    Ngày ghi nhận
-                  </p>
-                  <p className="text-[#212121]">
-                    <strong>03/11/2025</strong>
-                  </p>
-                </div>
-
-                <div className="p-3 bg-white rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    Tổ trưởng ghi nhận
-                  </p>
-                  <p className="text-[#212121]">
-                    <strong>Nguyễn Văn Tổ</strong>
-                  </p>
-                </div>
-
-                <div className="p-3 bg-white rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    Khu vực quản lý
-                  </p>
-                  <p className="text-[#212121]">
-                    Tổ 5, Phường Đống Đa
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Guidelines */}
+            {/* Instructions */}
             <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -452,7 +349,7 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
                 <ul className="space-y-3 text-[#212121]">
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Ưu tiên chọn người phản ánh từ danh sách nhân khẩu</span>
+                    <span>Chọn người phản ánh từ danh sách nhân khẩu</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
@@ -460,15 +357,7 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Chụp ảnh hiện trường nếu có thể</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Đánh giá mức độ ưu tiên phù hợp</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Thêm nhận xét và đề xuất của bạn</span>
+                    <span>Chọn phân loại phù hợp với nội dung kiến nghị</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#0D47A1] mt-1">•</span>
@@ -478,67 +367,38 @@ export default function LeaderFeedbackCreate({ onLogout }: LeaderFeedbackCreateP
               </CardContent>
             </Card>
 
-            {/* Priority Levels */}
+            {/* Category Guide */}
             <Card className="border-2 border-[#212121]/10 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-[#212121]">
-                  Hướng dẫn Mức độ Ưu tiên
+                  Hướng dẫn Phân loại
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3 text-[#212121]">
-                  <li className="p-3 bg-[#B71C1C]/10 rounded-lg border border-[#B71C1C]/20">
-                    <strong className="text-[#B71C1C]">Khẩn cấp:</strong>
-                    <p className="text-sm mt-1">
-                      Nguy hiểm, ảnh hưởng nghiêm trọng đến an toàn
-                    </p>
-                  </li>
-                  <li className="p-3 bg-[#FBC02D]/10 rounded-lg border border-[#FBC02D]/30">
-                    <strong className="text-[#212121]">Cao:</strong>
-                    <p className="text-sm mt-1">
-                      Ảnh hưởng nhiều người, cần giải quyết sớm
-                    </p>
-                  </li>
                   <li className="p-3 bg-[#0D47A1]/10 rounded-lg border border-[#0D47A1]/20">
-                    <strong className="text-[#0D47A1]">Trung bình:</strong>
+                    <strong className="text-[#0D47A1]">Hạ tầng:</strong>
                     <p className="text-sm mt-1">
-                      Vấn đề thông thường, giải quyết theo kế hoạch
+                      Đường, điện, nước, công trình công cộng
+                    </p>
+                  </li>
+                  <li className="p-3 bg-[#1B5E20]/10 rounded-lg border border-[#1B5E20]/20">
+                    <strong className="text-[#1B5E20]">Môi trường:</strong>
+                    <p className="text-sm mt-1">
+                      Rác thải, ô nhiễm, cây xanh
+                    </p>
+                  </li>
+                  <li className="p-3 bg-[#B71C1C]/10 rounded-lg border border-[#B71C1C]/20">
+                    <strong className="text-[#B71C1C]">An ninh:</strong>
+                    <p className="text-sm mt-1">
+                      Trật tự, an toàn khu dân cư
                     </p>
                   </li>
                   <li className="p-3 bg-[#F5F5F5] rounded-lg">
-                    <strong>Thấp:</strong>
+                    <strong>Khác:</strong>
                     <p className="text-sm mt-1">
-                      Không gấp, có thể lên kế hoạch dài hạn
+                      Các vấn đề khác không thuộc các loại trên
                     </p>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* After Submission */}
-            <Card className="border-2 border-[#1B5E20]/20 shadow-lg bg-[#1B5E20]/5">
-              <CardHeader>
-                <CardTitle className="text-[#212121]">
-                  Sau khi Lưu
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-[#212121]">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#1B5E20] mt-1">1.</span>
-                    <span>Thông báo cho người phản ánh đã tiếp nhận</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#1B5E20] mt-1">2.</span>
-                    <span>Chuyển tiếp lên Cán bộ Phường nếu cần</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#1B5E20] mt-1">3.</span>
-                    <span>Theo dõi tiến độ xử lý</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#1B5E20] mt-1">4.</span>
-                    <span>Cập nhật người dân về kết quả</span>
                   </li>
                 </ul>
               </CardContent>

@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from core.auth_bearer import JWTBearer
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
+
+from core.auth_bearer import JWTBearer
 from schemas.auth import UserInfor, UserRole
 from schemas.household import HokhauCreate, HokhauUpdate
 from services.household_service import HouseholdService
@@ -164,6 +165,62 @@ async def update_hokhau(
         changed_fields = jsonable_encoder(changed_fields)
         response = await HouseholdService.update_hokhau(id, changed_fields)
         return {"data": response.data}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.post("/{id}/verify", summary="Verify a household (CAN_BO_PHUONG only)")
+async def verify_hokhau(
+    id: str,
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=[UserRole.CAN_BO_PHUONG])),
+):
+    """Mark a household as verified by an official"""
+    try:
+        existing = await HouseholdService.get_hokhau_detail_without_nhankhau(id)
+        if not existing:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"code": "NOT_FOUND", "message": "Không tìm thấy hộ khẩu."}},
+            )
+
+        response = await HouseholdService.verify_hokhau(id)
+        return {
+            "data": response.data,
+            "message": "Xác minh hộ khẩu thành công.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"code": "SERVER_ERROR", "message": str(e)}},
+        )
+
+
+@router.post("/{id}/unverify", summary="Remove verification from a household (CAN_BO_PHUONG only)")
+async def unverify_hokhau(
+    id: str,
+    user_data: UserInfor = Depends(JWTBearer(accepted_role_list=[UserRole.CAN_BO_PHUONG])),
+):
+    """Remove verification from a household"""
+    try:
+        existing = await HouseholdService.get_hokhau_detail_without_nhankhau(id)
+        if not existing:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"code": "NOT_FOUND", "message": "Không tìm thấy hộ khẩu."}},
+            )
+
+        response = await HouseholdService.unverify_hokhau(id)
+        return {
+            "data": response.data,
+            "message": "Đã hủy xác minh hộ khẩu.",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

@@ -1,11 +1,14 @@
-import LeaderLayout from './LeaderLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { AlertCircle, ArrowLeft, Briefcase, Home, Loader2, MapPin, Save, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Household, householdsService } from '../../services/households-service';
+import { residentsService } from '../../services/residents-service';
 import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowLeft, Save, User, Home, Briefcase, AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderResidentCreateProps {
   onLogout: () => void;
@@ -13,11 +16,92 @@ interface LeaderResidentCreateProps {
 
 export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateProps) {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loadingHouseholds, setLoadingHouseholds] = useState(true);
+
+  // Form state - matching backend schema
+  const [formData, setFormData] = useState({
+    full_name: '',
+    date_of_birth: '',
+    cccd_number: '',
+    household_id: '',
+    place_of_birth: '',
+    hometown: '',
+    ethnicity: '',
+    occupation: '',
+    workplace: '',
+    cccd_issue_date: '',
+    cccd_issue_place: '',
+    residence_registration_date: '',
+    relationship_to_head: '',
+  });
+
+  useEffect(() => {
+    loadHouseholds();
+  }, []);
+
+  const loadHouseholds = async () => {
+    try {
+      setLoadingHouseholds(true);
+      const response = await householdsService.getHouseholdsList({ limit: 100 });
+      setHouseholds(response.data);
+    } catch (err) {
+      console.error('Error loading households:', err);
+    } finally {
+      setLoadingHouseholds(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.full_name || !formData.date_of_birth || !formData.cccd_number || !formData.household_id) {
+      setError('Vui lòng điền đầy đủ các trường bắt buộc (Họ tên, Ngày sinh, CCCD, Hộ khẩu)');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const createData: any = {
+        full_name: formData.full_name,
+        date_of_birth: formData.date_of_birth,
+        cccd_number: formData.cccd_number,
+        household_id: formData.household_id,
+      };
+
+      // Add optional fields only if they have values
+      if (formData.place_of_birth) createData.place_of_birth = formData.place_of_birth;
+      if (formData.hometown) createData.hometown = formData.hometown;
+      if (formData.ethnicity) createData.ethnicity = formData.ethnicity;
+      if (formData.occupation) createData.occupation = formData.occupation;
+      if (formData.workplace) createData.workplace = formData.workplace;
+      if (formData.cccd_issue_date) createData.cccd_issue_date = formData.cccd_issue_date;
+      if (formData.cccd_issue_place) createData.cccd_issue_place = formData.cccd_issue_place;
+      if (formData.residence_registration_date) createData.residence_registration_date = formData.residence_registration_date;
+      if (formData.relationship_to_head) createData.relationship_to_head = formData.relationship_to_head;
+
+      await residentsService.create(createData);
+      alert('Tạo nhân khẩu thành công!');
+      navigate('/leader/residents');
+    } catch (err: any) {
+      console.error('Error creating resident:', err);
+      setError(err.response?.data?.detail?.error?.message || err.response?.data?.detail || 'Không thể tạo nhân khẩu');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <LeaderLayout onLogout={onLogout}>
       <div className="p-6">
-        {/* Header */}
         <div className="mb-8">
           <Button
             variant="outline"
@@ -27,426 +111,330 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </Button>
-          <h1 className="text-[#212121] mb-3">
-            Thêm Nhân khẩu Mới
-          </h1>
-          <p className="text-[#212121]">
-            Thêm thành viên mới vào hộ khẩu trong khu vực quản lý
-          </p>
+          <h1 className="text-[#212121] mb-3 text-2xl font-bold">Thêm Nhân khẩu Mới</h1>
+          <p className="text-[#212121]">Thêm nhân khẩu mới vào hệ thống</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Form */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Personal Information */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#0D47A1]/10">
-                    <User className="w-6 h-6 text-[#0D47A1]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    Thông tin Cá nhân
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="full-name" className="text-[#212121]">
-                    Họ và tên <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Input
-                    id="full-name"
-                    placeholder="VD: Nguyễn Văn An"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
+        {error && (
+          <Card className="mb-6 border-2 border-[#B71C1C]/40 bg-[#B71C1C]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#B71C1C]">{error}</p>
+            </CardContent>
+          </Card>
+        )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Personal Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#0D47A1]/10">
+                      <User className="w-6 h-6 text-[#0D47A1]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Thông tin Cá nhân</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   <div className="space-y-3">
-                    <Label htmlFor="gender" className="text-[#212121]">
-                      Giới tính <span className="text-[#B71C1C]">*</span>
+                    <Label htmlFor="full-name" className="text-[#212121]">
+                      Họ và tên <span className="text-[#B71C1C]">*</span>
                     </Label>
-                    <Select defaultValue="male">
-                      <SelectTrigger id="gender" className="h-12 border-2 border-[#212121]/20">
-                        <SelectValue />
+                    <Input
+                      id="full-name"
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange('full_name', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập họ và tên"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label htmlFor="birth-date" className="text-[#212121]">
+                        Ngày sinh <span className="text-[#B71C1C]">*</span>
+                      </Label>
+                      <input
+                        id="birth-date"
+                        type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
+                        className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="ethnicity" className="text-[#212121]">
+                        Dân tộc
+                      </Label>
+                      <Input
+                        id="ethnicity"
+                        value={formData.ethnicity}
+                        onChange={(e) => handleInputChange('ethnicity', e.target.value)}
+                        className="h-12 border-2 border-[#212121]/20"
+                        placeholder="Nhập dân tộc"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="cccd-number" className="text-[#212121]">
+                      Số CCCD/CMND <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Input
+                      id="cccd-number"
+                      value={formData.cccd_number}
+                      onChange={(e) => handleInputChange('cccd_number', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập số CCCD/CMND"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label htmlFor="cccd-issue-date" className="text-[#212121]">
+                        Ngày cấp CCCD
+                      </Label>
+                      <input
+                        id="cccd-issue-date"
+                        type="date"
+                        value={formData.cccd_issue_date}
+                        onChange={(e) => handleInputChange('cccd_issue_date', e.target.value)}
+                        className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="cccd-issue-place" className="text-[#212121]">
+                        Nơi cấp CCCD
+                      </Label>
+                      <Input
+                        id="cccd-issue-place"
+                        value={formData.cccd_issue_place}
+                        onChange={(e) => handleInputChange('cccd_issue_place', e.target.value)}
+                        className="h-12 border-2 border-[#212121]/20"
+                        placeholder="Nhập nơi cấp"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Origin Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#1B5E20]/10">
+                      <MapPin className="w-6 h-6 text-[#1B5E20]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Thông tin Quê quán</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="place-of-birth" className="text-[#212121]">
+                      Nơi sinh
+                    </Label>
+                    <Input
+                      id="place-of-birth"
+                      value={formData.place_of_birth}
+                      onChange={(e) => handleInputChange('place_of_birth', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nơi sinh"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="hometown" className="text-[#212121]">
+                      Nguyên quán
+                    </Label>
+                    <Input
+                      id="hometown"
+                      value={formData.hometown}
+                      onChange={(e) => handleInputChange('hometown', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nguyên quán"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Household Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#1B5E20]/10">
+                      <Home className="w-6 h-6 text-[#1B5E20]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Thông tin Hộ khẩu</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="household" className="text-[#212121]">
+                      Hộ khẩu <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.household_id}
+                      onValueChange={(value) => handleInputChange('household_id', value)}
+                    >
+                      <SelectTrigger id="household" className="h-12 border-2 border-[#212121]/20">
+                        <SelectValue placeholder={loadingHouseholds ? "Đang tải..." : "Chọn hộ khẩu"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">Nam</SelectItem>
-                        <SelectItem value="female">Nữ</SelectItem>
-                        <SelectItem value="other">Khác</SelectItem>
+                        {households.map((h) => (
+                          <SelectItem key={h.id} value={h.id}>
+                            {h.address}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="birth-date" className="text-[#212121]">
-                      Ngày sinh <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <input
-                      id="birth-date"
-                      type="date"
-                      className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label htmlFor="relation" className="text-[#212121]">
+                        Quan hệ với chủ hộ
+                      </Label>
+                      <Select 
+                        value={formData.relationship_to_head}
+                        onValueChange={(value) => handleInputChange('relationship_to_head', value)}
+                      >
+                        <SelectTrigger id="relation" className="h-12 border-2 border-[#212121]/20">
+                          <SelectValue placeholder="Chọn quan hệ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Chủ hộ">Chủ hộ</SelectItem>
+                          <SelectItem value="Vợ">Vợ</SelectItem>
+                          <SelectItem value="Chồng">Chồng</SelectItem>
+                          <SelectItem value="Con">Con</SelectItem>
+                          <SelectItem value="Bố">Bố</SelectItem>
+                          <SelectItem value="Mẹ">Mẹ</SelectItem>
+                          <SelectItem value="Anh/Chị/Em">Anh/Chị/Em</SelectItem>
+                          <SelectItem value="Ông/Bà">Ông/Bà</SelectItem>
+                          <SelectItem value="Cháu">Cháu</SelectItem>
+                          <SelectItem value="Khác">Khác</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="registration-date" className="text-[#212121]">
+                        Ngày đăng ký thường trú
+                      </Label>
+                      <input
+                        id="registration-date"
+                        type="date"
+                        value={formData.residence_registration_date}
+                        onChange={(e) => handleInputChange('residence_registration_date', e.target.value)}
+                        className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
+                      />
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-3">
-                  <Label htmlFor="birth-place" className="text-[#212121]">
-                    Nơi sinh
-                  </Label>
-                  <Input
-                    id="birth-place"
-                    placeholder="VD: Hà Nội"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Work Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#0D47A1]/10">
+                      <Briefcase className="w-6 h-6 text-[#0D47A1]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Nghề nghiệp</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   <div className="space-y-3">
-                    <Label htmlFor="id-number" className="text-[#212121]">
-                      Số CCCD/CMND
+                    <Label htmlFor="occupation" className="text-[#212121]">
+                      Nghề nghiệp
                     </Label>
                     <Input
-                      id="id-number"
-                      placeholder="VD: 001088012345"
+                      id="occupation"
+                      value={formData.occupation}
+                      onChange={(e) => handleInputChange('occupation', e.target.value)}
                       className="h-12 border-2 border-[#212121]/20"
-                    />
-                    <p className="text-sm text-[#212121]">
-                      Để trống nếu chưa có (trẻ em dưới 14 tuổi)
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="id-issue-date" className="text-[#212121]">
-                      Ngày cấp CCCD/CMND
-                    </Label>
-                    <input
-                      id="id-issue-date"
-                      type="date"
-                      className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
+                      placeholder="Nhập nghề nghiệp"
                     />
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="id-issue-place" className="text-[#212121]">
-                    Nơi cấp CCCD/CMND
-                  </Label>
-                  <Input
-                    id="id-issue-place"
-                    placeholder="VD: Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư"
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="nationality" className="text-[#212121]">
-                      Quốc tịch <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Select defaultValue="vn">
-                      <SelectTrigger id="nationality" className="h-12 border-2 border-[#212121]/20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vn">Việt Nam</SelectItem>
-                        <SelectItem value="other">Khác</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="ethnicity" className="text-[#212121]">
-                      Dân tộc
+                    <Label htmlFor="workplace" className="text-[#212121]">
+                      Nơi làm việc
                     </Label>
-                    <Select defaultValue="kinh">
-                      <SelectTrigger id="ethnicity" className="h-12 border-2 border-[#212121]/20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="kinh">Kinh</SelectItem>
-                        <SelectItem value="tay">Tày</SelectItem>
-                        <SelectItem value="thai">Thái</SelectItem>
-                        <SelectItem value="muong">Mường</SelectItem>
-                        <SelectItem value="other">Khác</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="workplace"
+                      value={formData.workplace}
+                      onChange={(e) => handleInputChange('workplace', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nơi làm việc"
+                    />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* Household Information */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#1B5E20]/10">
-                    <Home className="w-6 h-6 text-[#1B5E20]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    Thông tin Hộ khẩu
+            {/* Side Panel */}
+            <div className="space-y-6">
+              {/* Action Buttons */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-[#212121]">Hành động</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    type="submit"
+                    className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5 mr-2" />
+                        Tạo Nhân khẩu
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate('/leader/residents')}
+                    className="w-full h-14 border-2 border-[#212121]/20"
+                    disabled={loading}
+                  >
+                    Hủy
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Notes */}
+              <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
+                <CardHeader>
+                  <CardTitle className="text-[#212121] flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-[#0D47A1]" />
+                    Lưu ý
                   </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="household" className="text-[#212121]">
-                    Số hộ khẩu <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Select>
-                    <SelectTrigger id="household" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue placeholder="Chọn hộ khẩu..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="HK-001">HK-001 - Nguyễn Văn An (25 Nguyễn Trãi)</SelectItem>
-                      <SelectItem value="HK-002">HK-002 - Trần Thị Bình (30 Lê Lợi)</SelectItem>
-                      <SelectItem value="HK-003">HK-003 - Lê Văn Cường (15 Hai Bà Trưng)</SelectItem>
-                      <SelectItem value="HK-004">HK-004 - Phạm Thị Dung (42 Trần Hưng Đạo)</SelectItem>
-                      <SelectItem value="HK-005">HK-005 - Hoàng Văn Em (8 Lý Thường Kiệt)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="relation" className="text-[#212121]">
-                    Quan hệ với chủ hộ <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Select>
-                    <SelectTrigger id="relation" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue placeholder="Chọn quan hệ..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="owner">Chủ hộ</SelectItem>
-                      <SelectItem value="spouse">Vợ/Chồng</SelectItem>
-                      <SelectItem value="son">Con trai</SelectItem>
-                      <SelectItem value="daughter">Con gái</SelectItem>
-                      <SelectItem value="father">Bố</SelectItem>
-                      <SelectItem value="mother">Mẹ</SelectItem>
-                      <SelectItem value="sibling">Anh/Chị/Em</SelectItem>
-                      <SelectItem value="grandparent">Ông/Bà</SelectItem>
-                      <SelectItem value="grandchild">Cháu</SelectItem>
-                      <SelectItem value="other">Khác</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="residence-status" className="text-[#212121]">
-                    Tình trạng cư trú <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Select defaultValue="permanent">
-                    <SelectTrigger id="residence-status" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="permanent">Thường trú</SelectItem>
-                      <SelectItem value="temporary">Tạm trú</SelectItem>
-                      <SelectItem value="absent">Tạm vắng</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="registration-date" className="text-[#212121]">
-                    Ngày đăng ký
-                  </Label>
-                  <input
-                    id="registration-date"
-                    type="date"
-                    defaultValue="2025-11-03"
-                    className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contact & Work Information */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#0D47A1]/10">
-                    <Briefcase className="w-6 h-6 text-[#0D47A1]" />
-                  </div>
-                  <CardTitle className="text-[#212121]">
-                    Liên hệ & Nghề nghiệp
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label htmlFor="phone" className="text-[#212121]">
-                      Số điện thoại
-                    </Label>
-                    <Input
-                      id="phone"
-                      placeholder="VD: 0912345678"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label htmlFor="email" className="text-[#212121]">
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="VD: nguyenvanan@example.com"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="education" className="text-[#212121]">
-                    Trình độ học vấn
-                  </Label>
-                  <Select>
-                    <SelectTrigger id="education" className="h-12 border-2 border-[#212121]/20">
-                      <SelectValue placeholder="Chọn trình độ..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Chưa học</SelectItem>
-                      <SelectItem value="primary">Tiểu học</SelectItem>
-                      <SelectItem value="secondary">THCS</SelectItem>
-                      <SelectItem value="high-school">THPT</SelectItem>
-                      <SelectItem value="vocational">Trung cấp/Cao đẳng</SelectItem>
-                      <SelectItem value="university">Đại học</SelectItem>
-                      <SelectItem value="postgraduate">Sau đại học</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="occupation" className="text-[#212121]">
-                    Nghề nghiệp
-                  </Label>
-                  <Input
-                    id="occupation"
-                    placeholder="VD: Kỹ sư, Giáo viên, Học sinh..."
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="workplace" className="text-[#212121]">
-                    Nơi làm việc/Học tập
-                  </Label>
-                  <Input
-                    id="workplace"
-                    placeholder="VD: Công ty ABC, Trường THPT XYZ..."
-                    className="h-12 border-2 border-[#212121]/20"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-sm text-[#212121]">
+                    <li>• Thông tin bắt buộc được đánh dấu *</li>
+                    <li>• Nhân khẩu phải thuộc một hộ khẩu</li>
+                    <li>• Số CCCD/CMND phải là duy nhất</li>
+                    <li>• Mọi thay đổi sẽ được ghi vào nhật ký</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-
-          {/* Side Panel */}
-          <div className="space-y-6">
-            {/* Action Buttons */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-[#212121]">
-                  Hành động
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90">
-                  <Save className="w-5 h-5 mr-2" />
-                  Lưu Nhân khẩu
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/leader/residents')}
-                  className="w-full h-14 border-2 border-[#212121]/20"
-                >
-                  Hủy
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Guidelines */}
-            <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-6 h-6 text-[#0D47A1]" />
-                  <CardTitle className="text-[#212121]">
-                    Hướng dẫn
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3 text-[#212121]">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Trường có dấu <span className="text-[#B71C1C]">*</span> là bắt buộc</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Trẻ em dưới 14 tuổi có thể chưa có CCCD/CMND</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Chủ hộ phải được thêm trước khi thêm các thành viên khác</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Kiểm tra kỹ thông tin CCCD/CMND để tránh trùng lặp</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#0D47A1] mt-1">•</span>
-                    <span>Quan hệ với chủ hộ phải chính xác theo giấy tờ</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Required Fields */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-[#212121]">
-                  Thông tin Bắt buộc
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-[#212121]">
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Họ và tên</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Giới tính</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Ngày sinh</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Quốc tịch</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Số hộ khẩu</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Quan hệ với chủ hộ</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-[#B71C1C]">✓</span>
-                    <span>Tình trạng cư trú</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        </form>
       </div>
     </LeaderLayout>
   );

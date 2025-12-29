@@ -41,7 +41,17 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
 
   const getStatusDisplay = (household: Household) => {
     // Can be customized based on actual status field from backend
-    return household.head_id ? 'Đã xác minh' : 'Chờ xác minh';
+    return (household.head_id || household.head_of_household) ? 'Đã xác minh' : 'Chờ xác minh';
+  };
+
+  const getHeadName = (household: Household) => {
+    if (household.head_of_household?.full_name) {
+      return household.head_of_household.full_name;
+    }
+    if (household.head_name) {
+      return household.head_name;
+    }
+    return 'Chưa có';
   };
 
   const getMemberCount = (household: Household) => {
@@ -127,7 +137,7 @@ export default function LeaderHouseholds({ onLogout }: LeaderHouseholdsProps) {
                       <TableCell className="text-[#212121] h-16">
                         <strong>{household.household_number || household.id.slice(0, 8)}</strong>
                       </TableCell>
-                      <TableCell className="text-[#212121] h-16">{household.head_name || 'Chưa có'}</TableCell>
+                      <TableCell className="text-[#212121] h-16">{getHeadName(household)}</TableCell>
                       <TableCell className="text-[#212121] h-16">{household.address}</TableCell>
                       <TableCell className="text-[#212121] h-16">{getMemberCount(household)}</TableCell>
                       <TableCell className="h-16">

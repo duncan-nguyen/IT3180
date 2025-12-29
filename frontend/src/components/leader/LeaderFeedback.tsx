@@ -1,6 +1,6 @@
-import { Combine, Loader2, Plus } from 'lucide-react';
+import { Combine, Eye, Loader2, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { feedbackService } from '../../services/feedback-service';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -26,20 +26,18 @@ interface FeedbackItem {
 
 // Map backend status to display
 const STATUS_DISPLAY: Record<string, string> = {
-  'moi_ghi_nhan': 'Mới',
-  'dang_xu_ly': 'Đang xử lý',
-  'da_xu_ly': 'Đã giải quyết',
-  'da_huy': 'Đã hủy',
+  'MOI_GHI_NHAN': 'Mới',
+  'DANG_XU_LY': 'Đang xử lý',
+  'DA_GIAI_QUYET': 'Đã giải quyết',
+  'DONG': 'Đã đóng',
 };
 
 // Map backend category to display
 const CATEGORY_DISPLAY: Record<string, string> = {
-  'ha_tang': 'Hạ tầng',
-  'an_ninh': 'An ninh',
-  'moi_truong': 'Môi trường',
-  'y_te': 'Y tế',
-  'giao_duc': 'Giáo dục',
-  'khac': 'Khác',
+  'HA_TANG': 'Hạ tầng',
+  'AN_NINH': 'An ninh',
+  'MOI_TRUONG': 'Môi trường',
+  'KHAC': 'Khác',
 };
 
 export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
@@ -50,6 +48,8 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [merging, setMerging] = useState(false);
 
   useEffect(() => {
     const fetchFeedbacks = async () => {
@@ -91,17 +91,40 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
     }
   };
 
-  const handleMerge = () => {
-    if (selectedIds.length >= 2) {
-      alert(`Đã gộp ${selectedIds.length} kiến nghị thành một!`);
+  const handleMerge = async () => {
+    if (selectedIds.length < 2) return;
+    
+    // Dùng phần tử đầu tiên làm parent, các phần tử còn lại là sub
+    const [parentId, ...subIds] = selectedIds;
+    
+    try {
+      setMerging(true);
+      await feedbackService.mergeFeedbacks({
+        parent_id: parentId,
+        sub_id: subIds
+      });
+      alert(`Đã gộp ${selectedIds.length} kiến nghị thành công!`);
       setSelectedIds([]);
+      // Reload danh sách
+      const params: Record<string, string> = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      const response = await feedbackService.getAllFeedbacks(params);
+      const fbList = response.map((item: any) => item.data);
+      setFeedbacks(fbList);
+    } catch (err: any) {
+      console.error('Error merging feedbacks:', err);
+      alert('Gộp kiến nghị thất bại: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setMerging(false);
     }
   };
 
   const getStatusColor = (status: string) => {
-    if (status === 'da_xu_ly') return 'bg-[#1B5E20] text-white';
-    if (status === 'dang_xu_ly') return 'bg-[#0D47A1] text-white';
-    if (status === 'da_huy') return 'bg-[#B71C1C] text-white';
+    const s = status?.toUpperCase();
+    if (s === 'DA_GIAI_QUYET') return 'bg-[#1B5E20] text-white';
+    if (s === 'DANG_XU_LY') return 'bg-[#0D47A1] text-white';
+    if (s === 'DONG') return 'bg-[#B71C1C] text-white';
     return 'bg-[#FBC02D] text-[#212121]';
   };
 
@@ -135,11 +158,15 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
 
                   <Button
                     onClick={handleMerge}
-                    disabled={selectedIds.length < 2}
+                    disabled={selectedIds.length < 2 || merging}
                     className="h-14 px-6 bg-[#0D47A1] hover:bg-[#0D47A1]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Combine className="w-6 h-6 mr-3" />
-                    Gộp các mục đã chọn ({selectedIds.length})
+                    {merging ? (
+                      <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                    ) : (
+                      <Combine className="w-6 h-6 mr-3" />
+                    )}
+                    {merging ? 'Đang gộp...' : `Gộp các mục đã chọn (${selectedIds.length})`}
                   </Button>
                 </div>
 
@@ -152,9 +179,9 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                        <SelectItem value="moi_ghi_nhan">Mới</SelectItem>
-                        <SelectItem value="dang_xu_ly">Đang xử lý</SelectItem>
-                        <SelectItem value="da_xu_ly">Đã giải quyết</SelectItem>
+                        <SelectItem value="MOI_GHI_NHAN">Mới</SelectItem>
+                        <SelectItem value="DANG_XU_LY">Đang xử lý</SelectItem>
+                        <SelectItem value="DA_GIAI_QUYET">Đã giải quyết</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -166,9 +193,10 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả phân loại</SelectItem>
-                        <SelectItem value="ha_tang">Hạ tầng</SelectItem>
-                        <SelectItem value="an_ninh">An ninh</SelectItem>
-                        <SelectItem value="moi_truong">Môi trường</SelectItem>
+                        <SelectItem value="HA_TANG">Hạ tầng</SelectItem>
+                        <SelectItem value="AN_NINH">An ninh</SelectItem>
+                        <SelectItem value="MOI_TRUONG">Môi trường</SelectItem>
+                        <SelectItem value="KHAC">Khác</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -211,6 +239,7 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                     <TableHead className="text-[#212121] h-14">Người phản ánh</TableHead>
                     <TableHead className="text-[#212121] h-14">Trạng thái</TableHead>
                     <TableHead className="text-[#212121] h-14">Ngày gửi</TableHead>
+                    <TableHead className="text-[#212121] h-14 text-center">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -239,6 +268,18 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </TableCell>
                       <TableCell className="text-[#212121] h-16">
                         {formatDate(feedback.created_at)}
+                      </TableCell>
+                      <TableCell className="h-16 text-center">
+                        <Link to={`/leader/feedback/${feedback.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-[#0D47A1] text-[#0D47A1] hover:bg-[#0D47A1]/10"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Chi tiết
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}

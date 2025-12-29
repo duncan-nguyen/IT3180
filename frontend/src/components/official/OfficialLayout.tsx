@@ -1,7 +1,7 @@
+import { BarChart3, Home, LogOut, MessageSquare } from 'lucide-react';
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { MessageSquare, BarChart3, LogOut } from 'lucide-react';
 
 interface OfficialLayoutProps {
   children: ReactNode;
@@ -13,6 +13,7 @@ export default function OfficialLayout({ children, onLogout }: OfficialLayoutPro
 
   const menuItems = [
     { icon: MessageSquare, label: 'Danh sách Kiến nghị', path: '/official' },
+    { icon: Home, label: 'Xác minh Hộ khẩu', path: '/official/households' },
     { icon: BarChart3, label: 'Báo cáo Toàn phường', path: '/official/reports' },
   ];
 

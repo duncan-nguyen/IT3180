@@ -39,25 +39,24 @@ export default function OfficialFeedbackList({ userName, onLogout }: OfficialFee
   };
 
   const getStatusColor = (status: string) => {
-    // Map status string to color
-    // Values from enum: 'chua_xu_ly', 'dang_xu_ly', 'da_xu_ly', 'tu_choi', 'dang_xu_ly'
-    if (status === 'dang_xu_ly' || status === 'da_xu_ly') return 'bg-[#1B5E20] text-white'; // Green
-    if (status === 'dang_xu_ly') return 'bg-[#0D47A1] text-white'; // Blue
-    if (status === 'moi_ghi_nhan' || status === 'chua_xu_ly') return 'bg-[#FBC02D] text-[#212121]'; // Yellow
-    if (status === 'tu_choi') return 'bg-red-600 text-white';
+    // Map status string to color - use uppercase for comparison
+    const s = status?.toUpperCase();
+    if (s === 'DA_GIAI_QUYET') return 'bg-[#1B5E20] text-white'; // Green
+    if (s === 'DANG_XU_LY') return 'bg-[#0D47A1] text-white'; // Blue
+    if (s === 'MOI_GHI_NHAN') return 'bg-[#FBC02D] text-[#212121]'; // Yellow
+    if (s === 'DONG') return 'bg-gray-500 text-white';
     return 'bg-gray-200 text-black';
   };
 
   const getStatusLabel = (status: string) => {
+    const s = status?.toUpperCase();
     const labels: Record<string, string> = {
-      'moi_ghi_nhan': 'Mới ghi nhận',
-      'chua_xu_ly': 'Chờ phản hồi', // Mapping to UI term
-      'dang_xu_ly': 'Đang xử lý',
-      'da_xu_ly': 'Đã xử lý',
-      'dang_xu_ly': 'Đã phản hồi',
-      'tu_choi': 'Từ chối'
+      'MOI_GHI_NHAN': 'Mới ghi nhận',
+      'DANG_XU_LY': 'Đang xử lý',
+      'DA_GIAI_QUYET': 'Đã giải quyết',
+      'DONG': 'Đã đóng'
     };
-    return labels[status] || status;
+    return labels[s] || status;
   };
 
   return (

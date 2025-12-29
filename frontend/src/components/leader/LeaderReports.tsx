@@ -1,42 +1,122 @@
-import LeaderLayout from './LeaderLayout';
+import { AlertCircle, Loader2, MessageSquare, TrendingUp, UserCircle, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import statisticsService, {
+    DemographicsData,
+    FeedbackCategoryItem,
+    FeedbackStatusItem,
+    HouseholdTrendItem,
+    OverviewStats,
+    ProcessingTimeItem,
+} from '../../services/statistics-service';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, UserCircle, MessageSquare, TrendingUp } from 'lucide-react';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderReportsProps {
   onLogout: () => void;
 }
 
-const householdData = [
-  { month: 'Tháng 7', count: 148 },
-  { month: 'Tháng 8', count: 152 },
-  { month: 'Tháng 9', count: 154 },
-  { month: 'Tháng 10', count: 155 },
-  { month: 'Tháng 11', count: 156 },
-];
-
-const feedbackCategoryData = [
-  { name: 'Hạ tầng', value: 35 },
-  { name: 'Môi trường', value: 28 },
-  { name: 'An ninh', value: 22 },
-  { name: 'Y tế', value: 10 },
-  { name: 'Khác', value: 5 },
-];
-
 const COLORS = ['#0D47A1', '#1B5E20', '#FBC02D', '#B71C1C', '#212121'];
 
 export default function LeaderReports({ onLogout }: LeaderReportsProps) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Stats data
+  const [overview, setOverview] = useState<OverviewStats | null>(null);
+  const [householdTrend, setHouseholdTrend] = useState<HouseholdTrendItem[]>([]);
+  const [feedbackByCategory, setFeedbackByCategory] = useState<FeedbackCategoryItem[]>([]);
+  const [feedbackByStatus, setFeedbackByStatus] = useState<{ data: FeedbackStatusItem[]; total: number } | null>(null);
+  const [demographics, setDemographics] = useState<DemographicsData | null>(null);
+  const [processingTime, setProcessingTime] = useState<ProcessingTimeItem[]>([]);
+
+  useEffect(() => {
+    loadAllStatistics();
+  }, []);
+
+  const loadAllStatistics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load all statistics in parallel
+      const [
+        overviewData,
+        trendData,
+        categoryData,
+        statusData,
+        demographicsData,
+        processingTimeData,
+      ] = await Promise.all([
+        statisticsService.getOverview(),
+        statisticsService.getHouseholdTrend(5),
+        statisticsService.getFeedbackByCategory(),
+        statisticsService.getFeedbackByStatus(),
+        statisticsService.getResidentDemographics(),
+        statisticsService.getFeedbackProcessingTime(),
+      ]);
+
+      setOverview(overviewData);
+      setHouseholdTrend(trendData);
+      setFeedbackByCategory(categoryData);
+      setFeedbackByStatus(statusData);
+      setDemographics(demographicsData);
+      setProcessingTime(processingTimeData);
+    } catch (err: any) {
+      console.error('Error loading statistics:', err);
+      setError(err.response?.data?.detail?.error?.message || 'Không thể tải dữ liệu thống kê');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <LeaderLayout onLogout={onLogout}>
+        <div className="p-6 flex justify-center items-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+          <span className="ml-2 text-[#212121]">Đang tải dữ liệu thống kê...</span>
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <LeaderLayout onLogout={onLogout}>
+        <div className="p-6">
+          <Card className="border-2 border-[#B71C1C]/20 bg-[#B71C1C]/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 text-[#B71C1C]">
+                <AlertCircle className="w-6 h-6" />
+                <p>{error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </LeaderLayout>
+    );
+  }
+
   return (
     <LeaderLayout onLogout={onLogout}>
       <div className="p-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-[#212121] mb-3">
-            Báo cáo Thống kê
-          </h1>
-          <p className="text-[#212121]">
-            Tổng quan số liệu Tổ 5, Phường Đống Đa
-          </p>
+          <h1 className="text-[#212121] mb-3">Báo cáo Thống kê</h1>
+          <p className="text-[#212121]">Tổng quan số liệu Tổ 5, Phường Đống Đa</p>
         </div>
 
         {/* Summary Stats */}
@@ -49,7 +129,7 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Tổng Hộ khẩu</p>
-                  <p className="text-3xl text-[#212121]">156</p>
+                  <p className="text-3xl text-[#212121]">{overview?.total_households || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -63,7 +143,7 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Tổng Nhân khẩu</p>
-                  <p className="text-3xl text-[#212121]">542</p>
+                  <p className="text-3xl text-[#212121]">{overview?.total_residents || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -77,7 +157,7 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Kiến nghị tháng này</p>
-                  <p className="text-3xl text-[#212121]">23</p>
+                  <p className="text-3xl text-[#212121]">{overview?.feedback_this_month || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -91,7 +171,7 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
                 </div>
                 <div>
                   <p className="text-[#212121] mb-1">Tỷ lệ giải quyết</p>
-                  <p className="text-3xl text-[#212121]">87%</p>
+                  <p className="text-3xl text-[#212121]">{overview?.resolution_rate || 0}%</p>
                 </div>
               </div>
             </CardContent>
@@ -103,13 +183,11 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
           {/* Household Growth Chart */}
           <Card className="border-2 border-[#212121]/10 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-[#212121]">
-                Biến động Hộ khẩu 5 tháng gần đây
-              </CardTitle>
+              <CardTitle className="text-[#212121]">Biến động Hộ khẩu 5 tháng gần đây</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={householdData}>
+                <BarChart data={householdTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" style={{ fontSize: '14px' }} />
                   <YAxis style={{ fontSize: '14px' }} />
@@ -124,15 +202,13 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
           {/* Feedback Category Pie Chart */}
           <Card className="border-2 border-[#212121]/10 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-[#212121]">
-                Phân loại Kiến nghị theo Lĩnh vực
-              </CardTitle>
+              <CardTitle className="text-[#212121]">Phân loại Kiến nghị theo Lĩnh vực</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={feedbackCategoryData}
+                    data={feedbackByCategory}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -141,7 +217,7 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {feedbackCategoryData.map((entry, index) => (
+                    {feedbackByCategory.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -156,66 +232,61 @@ export default function LeaderReports({ onLogout }: LeaderReportsProps) {
         <div className="mt-8">
           <Card className="border-2 border-[#212121]/10 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-[#212121]">
-                Thống kê chi tiết
-              </CardTitle>
+              <CardTitle className="text-[#212121]">Thống kê chi tiết</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Age Distribution */}
                 <div className="space-y-4">
                   <h3 className="text-[#212121]">Theo Độ tuổi</h3>
                   <div className="p-6 bg-[#F5F5F5] rounded-lg space-y-2">
-                    <p className="text-[#212121]">
-                      <strong>0-15 tuổi:</strong> 98 người (18%)
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>16-60 tuổi:</strong> 356 người (66%)
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>Trên 60 tuổi:</strong> 88 người (16%)
-                    </p>
+                    {demographics?.age_distribution.map((item, index) => (
+                      <p key={index} className="text-[#212121]">
+                        <strong>{item.group}:</strong> {item.count} người ({item.percentage}%)
+                      </p>
+                    ))}
                   </div>
                 </div>
 
+                {/* Gender Distribution */}
                 <div className="space-y-4">
                   <h3 className="text-[#212121]">Theo Giới tính</h3>
                   <div className="p-6 bg-[#F5F5F5] rounded-lg space-y-2">
-                    <p className="text-[#212121]">
-                      <strong>Nam:</strong> 268 người (49%)
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>Nữ:</strong> 274 người (51%)
-                    </p>
+                    {demographics?.gender_distribution.map((item, index) => (
+                      <p key={index} className="text-[#212121]">
+                        <strong>{item.gender}:</strong> {item.count} người ({item.percentage}%)
+                      </p>
+                    ))}
                   </div>
                 </div>
 
+                {/* Feedback Status */}
                 <div className="space-y-4">
                   <h3 className="text-[#212121]">Tình trạng Kiến nghị</h3>
                   <div className="p-6 bg-[#F5F5F5] rounded-lg space-y-2">
-                    <p className="text-[#212121]">
-                      <strong>Đã giải quyết:</strong> 87 kiến nghị (87%)
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>Đang xử lý:</strong> 10 kiến nghị (10%)
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>Mới gửi:</strong> 3 kiến nghị (3%)
-                    </p>
+                    {feedbackByStatus?.data.map((item, index) => (
+                      <p key={index} className="text-[#212121]">
+                        <strong>{item.name}:</strong> {item.count} kiến nghị ({item.percentage}%)
+                      </p>
+                    ))}
+                    {(!feedbackByStatus?.data || feedbackByStatus.data.length === 0) && (
+                      <p className="text-[#212121]">Chưa có dữ liệu</p>
+                    )}
                   </div>
                 </div>
 
+                {/* Processing Time */}
                 <div className="space-y-4">
                   <h3 className="text-[#212121]">Thời gian xử lý trung bình</h3>
                   <div className="p-6 bg-[#F5F5F5] rounded-lg space-y-2">
-                    <p className="text-[#212121]">
-                      <strong>Hạ tầng:</strong> 7 ngày
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>Môi trường:</strong> 5 ngày
-                    </p>
-                    <p className="text-[#212121]">
-                      <strong>An ninh:</strong> 3 ngày
-                    </p>
+                    {processingTime.map((item, index) => (
+                      <p key={index} className="text-[#212121]">
+                        <strong>{item.category}:</strong> {item.avg_days} ngày
+                      </p>
+                    ))}
+                    {processingTime.length === 0 && (
+                      <p className="text-[#212121]">Chưa có dữ liệu</p>
+                    )}
                   </div>
                 </div>
               </div>
