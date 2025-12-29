@@ -1,11 +1,12 @@
-import LeaderLayout from './LeaderLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
-import { Label } from '../ui/label';
-import { Input } from '../ui/input';
-import { ArrowLeft, Trash2, AlertTriangle, User, Home } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Home, Loader2, Trash2, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Resident, residentsService } from '../../services/residents-service';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import LeaderLayout from './LeaderLayout';
 
 interface LeaderResidentDeleteProps {
   onLogout: () => void;
@@ -15,19 +16,94 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Mock data - would come from API
-  const residentData = {
-    id: '1',
-    name: 'Nguyễn Văn An',
-    idNumber: '001085012345',
-    birthDate: '15/03/1985',
-    household: 'HK-001',
-    householdAddress: '25 Nguyễn Trãi, Phường Đống Đa',
-    relation: 'Chủ hộ',
-    phone: '0912345678',
-    email: 'nguyenvanan@example.com',
-    residenceStatus: 'Thường trú',
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [residentData, setResidentData] = useState<Resident | null>(null);
+  const [reason, setReason] = useState('');
+
+  // Confirmation checkboxes
+  const [confirmHousehold, setConfirmHousehold] = useState(false);
+  const [confirmReason, setConfirmReason] = useState(false);
+  const [confirmBackup, setConfirmBackup] = useState(false);
+  const [confirmIrreversible, setConfirmIrreversible] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const isHeadOfHousehold = residentData?.relationship_to_head === 'Chủ hộ';
+  const allConfirmed = confirmHousehold && confirmReason && confirmBackup && confirmIrreversible && confirmDelete;
+
+  useEffect(() => {
+    if (id) {
+      loadResident();
+    }
+  }, [id]);
+
+  const loadResident = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await residentsService.getById(id!);
+      setResidentData(data);
+    } catch (err) {
+      console.error('Error loading resident:', err);
+      setError('Không thể tải thông tin nhân khẩu');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleDelete = async () => {
+    if (!id || !allConfirmed) return;
+
+    try {
+      setDeleting(true);
+      setError(null);
+
+      await residentsService.delete(id);
+      
+      // Navigate back to residents list
+      navigate('/leader/residents', { 
+        state: { message: 'Xóa nhân khẩu thành công!' } 
+      });
+    } catch (err: any) {
+      console.error('Error deleting resident:', err);
+      setError(err.response?.data?.detail?.error?.message || 'Không thể xóa nhân khẩu. Vui lòng thử lại.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <LeaderLayout onLogout={onLogout}>
+        <div className="p-6 flex justify-center items-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0D47A1]" />
+          <span className="ml-2 text-[#212121]">Đang tải...</span>
+        </div>
+      </LeaderLayout>
+    );
+  }
+
+  if (!residentData) {
+    return (
+      <LeaderLayout onLogout={onLogout}>
+        <div className="p-6">
+          <Card className="border-2 border-[#B71C1C]/20">
+            <CardContent className="pt-6">
+              <p className="text-[#B71C1C]">Không tìm thấy nhân khẩu</p>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/leader/residents')}
+                className="mt-4"
+              >
+                Quay lại danh sách
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </LeaderLayout>
+    );
+  }
 
   return (
     <LeaderLayout onLogout={onLogout}>
@@ -42,13 +118,22 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </Button>
-          <h1 className="text-[#212121] mb-3">
+          <h1 className="text-[#212121] mb-3 text-2xl font-bold">
             Xóa Nhân khẩu
           </h1>
           <p className="text-[#212121]">
-            Xác nhận xóa thông tin nhân khẩu: {residentData.name}
+            Xác nhận xóa thông tin nhân khẩu: {residentData.full_name}
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <Card className="mb-6 border-2 border-[#B71C1C]/40 bg-[#B71C1C]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#B71C1C]">{error}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -76,15 +161,17 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                   <li className="flex items-start gap-2">
                     <span className="text-[#B71C1C] mt-1 text-2xl">⚠</span>
                     <span>
-                      Thông tin cá nhân của <strong>{residentData.name}</strong> (CCCD: {residentData.idNumber}) sẽ bị xóa hoàn toàn
+                      Thông tin cá nhân của <strong>{residentData.full_name}</strong> (CCCD: {residentData.cccd_number}) sẽ bị xóa hoàn toàn
                     </span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#B71C1C] mt-1 text-2xl">⚠</span>
-                    <span>
-                      Người này sẽ bị loại khỏi hộ khẩu <strong>{residentData.household}</strong>
-                    </span>
-                  </li>
+                  {residentData.household && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-[#B71C1C] mt-1 text-2xl">⚠</span>
+                      <span>
+                        Người này sẽ bị loại khỏi hộ khẩu tại <strong>{residentData.household.address}</strong>
+                      </span>
+                    </li>
+                  )}
                   <li className="flex items-start gap-2">
                     <span className="text-[#B71C1C] mt-1 text-2xl">⚠</span>
                     <span>
@@ -97,25 +184,12 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                       Hành động này <strong>KHÔNG THỂ HOÀN TÁC</strong>
                     </span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#B71C1C] mt-1 text-2xl">⚠</span>
-                    <span>
-                      {residentData.relation === 'Chủ hộ' && (
-                        <strong className="text-[#B71C1C]">
-                          LƯU Ý ĐẶC BIỆT: Người này là CHỦ HỘ. Bạn cần chỉ định chủ hộ mới trước khi xóa!
-                        </strong>
-                      )}
-                      {residentData.relation !== 'Chủ hộ' && (
-                        <span>Cần có lý do chính đáng để xóa nhân khẩu</span>
-                      )}
-                    </span>
-                  </li>
                 </ul>
               </CardContent>
             </Card>
 
             {/* Special Warning for Head of Household */}
-            {residentData.relation === 'Chủ hộ' && (
+            {isHeadOfHousehold && (
               <Card className="border-2 border-[#B71C1C]/40 shadow-lg bg-[#B71C1C]/5">
                 <CardHeader>
                   <CardTitle className="text-[#B71C1C]">
@@ -124,7 +198,7 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                 </CardHeader>
                 <CardContent>
                   <p className="text-[#212121] mb-4">
-                    Người này là <strong>CHỦ HỘ</strong> của hộ khẩu {residentData.household}. 
+                    Người này là <strong>CHỦ HỘ</strong>. 
                     Trước khi xóa, bạn <strong>BẮT BUỘC PHẢI</strong>:
                   </p>
                   <ul className="space-y-3 text-[#212121]">
@@ -151,66 +225,24 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
               </Card>
             )}
 
-            {/* Reason Required */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
+            {/* Reason for Deletion */}
+            <Card className="border-2 border-[#B71C1C]/20 shadow-lg">
               <CardHeader>
                 <CardTitle className="text-[#212121]">
-                  Lý do Xóa Nhân khẩu <span className="text-[#B71C1C]">*</span>
+                  Lý do Xóa <span className="text-[#B71C1C]">*</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 bg-[#0D47A1]/5 border-2 border-[#0D47A1]/20 rounded-lg">
-                  <p className="text-[#212121]">
-                    <strong>BẮT BUỘC:</strong> Bạn phải cung cấp lý do chính đáng để xóa nhân khẩu
-                  </p>
-                </div>
-
+              <CardContent>
                 <div className="space-y-3">
                   <Label htmlFor="reason" className="text-[#212121]">
-                    Mô tả chi tiết lý do <span className="text-[#B71C1C]">*</span>
+                    Vui lòng nêu rõ lý do xóa nhân khẩu này:
                   </Label>
                   <Textarea
                     id="reason"
-                    placeholder="VD: Người này đã chuyển đi nơi khác / Đã qua đời / Nhập nhầm dữ liệu / Chuyển hộ khẩu..."
-                    className="min-h-[150px] border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                {residentData.relation === 'Chủ hộ' && (
-                  <div className="space-y-3">
-                    <Label htmlFor="new-owner" className="text-[#212121]">
-                      Chủ hộ mới (nếu có) <span className="text-[#B71C1C]">*</span>
-                    </Label>
-                    <Input
-                      id="new-owner"
-                      placeholder="VD: Trần Thị Bình (vợ)"
-                      className="h-12 border-2 border-[#212121]/20"
-                    />
-                    <p className="text-sm text-[#212121]">
-                      Bắt buộc nếu xóa chủ hộ và còn thành viên khác trong hộ
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <Label htmlFor="supporting-docs" className="text-[#212121]">
-                    Giấy tờ hỗ trợ
-                  </Label>
-                  <Textarea
-                    id="supporting-docs"
-                    placeholder="VD: Giấy xác nhận chuyển đi từ Công an Phường / Giấy chứng tử / Giấy xác nhận từ cán bộ phường..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Nhập lý do xóa nhân khẩu (ví dụ: Đã mất, Chuyển nơi ở, Sai thông tin đăng ký...)"
                     className="min-h-[100px] border-2 border-[#212121]/20"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label htmlFor="approved-by" className="text-[#212121]">
-                    Người phê duyệt <span className="text-[#B71C1C]">*</span>
-                  </Label>
-                  <Input
-                    id="approved-by"
-                    placeholder="VD: Cán bộ Phường Nguyễn Văn X"
-                    className="h-12 border-2 border-[#212121]/20"
                   />
                 </div>
               </CardContent>
@@ -222,42 +254,22 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
-                    id="confirm-understand"
-                    className="w-5 h-5 mt-1"
-                  />
-                  <label htmlFor="confirm-understand" className="text-[#212121] cursor-pointer">
-                    <strong>Tôi hiểu rằng thông tin nhân khẩu sẽ bị xóa vĩnh viễn</strong>
-                  </label>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
                     id="confirm-household"
+                    checked={confirmHousehold}
+                    onChange={(e) => setConfirmHousehold(e.target.checked)}
                     className="w-5 h-5 mt-1"
                   />
                   <label htmlFor="confirm-household" className="text-[#212121] cursor-pointer">
-                    <strong>Tôi hiểu rằng người này sẽ bị loại khỏi hộ khẩu {residentData.household}</strong>
+                    <strong>Tôi hiểu rằng nhân khẩu này sẽ bị xóa khỏi hộ khẩu</strong>
                   </label>
                 </div>
-
-                {residentData.relation === 'Chủ hộ' && (
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      id="confirm-new-owner"
-                      className="w-5 h-5 mt-1"
-                    />
-                    <label htmlFor="confirm-new-owner" className="text-[#B71C1C] cursor-pointer">
-                      <strong>Tôi đã chỉ định chủ hộ mới hoặc hộ khẩu sẽ bị giải thể</strong>
-                    </label>
-                  </div>
-                )}
 
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     id="confirm-reason"
+                    checked={confirmReason}
+                    onChange={(e) => setConfirmReason(e.target.checked)}
                     className="w-5 h-5 mt-1"
                   />
                   <label htmlFor="confirm-reason" className="text-[#212121] cursor-pointer">
@@ -269,6 +281,8 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                   <input
                     type="checkbox"
                     id="confirm-backup"
+                    checked={confirmBackup}
+                    onChange={(e) => setConfirmBackup(e.target.checked)}
                     className="w-5 h-5 mt-1"
                   />
                   <label htmlFor="confirm-backup" className="text-[#212121] cursor-pointer">
@@ -280,6 +294,8 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                   <input
                     type="checkbox"
                     id="confirm-irreversible"
+                    checked={confirmIrreversible}
+                    onChange={(e) => setConfirmIrreversible(e.target.checked)}
                     className="w-5 h-5 mt-1"
                   />
                   <label htmlFor="confirm-irreversible" className="text-[#212121] cursor-pointer">
@@ -292,10 +308,12 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                     <input
                       type="checkbox"
                       id="confirm-delete"
+                      checked={confirmDelete}
+                      onChange={(e) => setConfirmDelete(e.target.checked)}
                       className="w-5 h-5 mt-1"
                     />
                     <label htmlFor="confirm-delete" className="text-[#B71C1C] cursor-pointer">
-                      <strong>TÔI CHẮC CHẮN MUỐN XÓA NHÂN KHẨU "{residentData.name.toUpperCase()}"</strong>
+                      <strong>TÔI CHẮC CHẮN MUỐN XÓA NHÂN KHẨU "{residentData.full_name.toUpperCase()}"</strong>
                     </label>
                   </div>
                 </div>
@@ -313,15 +331,29 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full h-14 bg-[#B71C1C] hover:bg-[#B71C1C]/90">
-                  <Trash2 className="w-5 h-5 mr-2" />
-                  Xóa Nhân khẩu Vĩnh viễn
+                <Button 
+                  className="w-full h-14 bg-[#B71C1C] hover:bg-[#B71C1C]/90"
+                  onClick={handleDelete}
+                  disabled={!allConfirmed || deleting || !reason.trim()}
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-5 h-5 mr-2" />
+                      Xóa Nhân khẩu Vĩnh viễn
+                    </>
+                  )}
                 </Button>
 
                 <Button
                   variant="outline"
                   onClick={() => navigate('/leader/residents')}
                   className="w-full h-14 border-2 border-[#212121]/20"
+                  disabled={deleting}
                 >
                   Hủy và Quay lại
                 </Button>
@@ -346,7 +378,7 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                     <strong>Họ và tên:</strong>
                   </p>
                   <p className="text-[#212121]">
-                    {residentData.name}
+                    {residentData.full_name}
                   </p>
                 </div>
 
@@ -355,7 +387,7 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                     <strong>Số CCCD/CMND:</strong>
                   </p>
                   <p className="text-[#212121]">
-                    {residentData.idNumber}
+                    {residentData.cccd_number}
                   </p>
                 </div>
 
@@ -364,88 +396,65 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                     <strong>Ngày sinh:</strong>
                   </p>
                   <p className="text-[#212121]">
-                    {residentData.birthDate}
+                    {residentData.date_of_birth}
                   </p>
                 </div>
 
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Số điện thoại:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    {residentData.phone}
-                  </p>
-                </div>
-
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Email:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    {residentData.email}
-                  </p>
-                </div>
+                {residentData.phone_number && (
+                  <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                    <p className="text-sm text-[#212121] mb-1">
+                      <strong>Số điện thoại:</strong>
+                    </p>
+                    <p className="text-[#212121]">
+                      {residentData.phone_number}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Household Info */}
-            <Card className="border-2 border-[#212121]/10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#1B5E20]/10">
-                    <Home className="w-6 h-6 text-[#1B5E20]" />
+            {residentData.household && (
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#1B5E20]/10">
+                      <Home className="w-6 h-6 text-[#1B5E20]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">
+                      Thông tin Hộ khẩu
+                    </CardTitle>
                   </div>
-                  <CardTitle className="text-[#212121]">
-                    Thông tin Hộ khẩu
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Số hộ khẩu:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    {residentData.household}
-                  </p>
-                </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="p-3 bg-[#F5F5F5] rounded-lg">
+                    <p className="text-sm text-[#212121] mb-1">
+                      <strong>Địa chỉ:</strong>
+                    </p>
+                    <p className="text-[#212121]">
+                      {residentData.household.address}
+                    </p>
+                  </div>
 
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Địa chỉ:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    {residentData.householdAddress}
-                  </p>
-                </div>
-
-                <div className={`p-3 rounded-lg ${
-                  residentData.relation === 'Chủ hộ' 
-                    ? 'bg-[#B71C1C]/10 border border-[#B71C1C]/20' 
-                    : 'bg-[#F5F5F5]'
-                }`}>
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Quan hệ:</strong>
-                  </p>
-                  <span className={`inline-block px-3 py-1 rounded ${
-                    residentData.relation === 'Chủ hộ'
-                      ? 'bg-[#B71C1C] text-white'
-                      : 'bg-[#0D47A1]/10 text-[#0D47A1]'
+                  <div className={`p-3 rounded-lg ${
+                    isHeadOfHousehold 
+                      ? 'bg-[#B71C1C]/10 border border-[#B71C1C]/20' 
+                      : 'bg-[#F5F5F5]'
                   }`}>
-                    {residentData.relation}
-                  </span>
-                </div>
-
-                <div className="p-3 bg-[#F5F5F5] rounded-lg">
-                  <p className="text-sm text-[#212121] mb-1">
-                    <strong>Tình trạng cư trú:</strong>
-                  </p>
-                  <p className="text-[#212121]">
-                    {residentData.residenceStatus}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="text-sm text-[#212121] mb-1">
+                      <strong>Quan hệ:</strong>
+                    </p>
+                    <span className={`inline-block px-3 py-1 rounded ${
+                      isHeadOfHousehold
+                        ? 'bg-[#B71C1C] text-white'
+                        : 'bg-[#0D47A1]/10 text-[#0D47A1]'
+                    }`}>
+                      {residentData.relationship_to_head || 'Không xác định'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Alternative Actions */}
             <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
@@ -465,11 +474,6 @@ export default function LeaderResidentDelete({ onLogout }: LeaderResidentDeleteP
                 >
                   Chỉnh sửa Thông tin
                 </Button>
-                <div className="p-3 bg-white rounded-lg">
-                  <p className="text-sm text-[#212121]">
-                    Đổi tình trạng cư trú sang "Tạm vắng" thay vì xóa
-                  </p>
-                </div>
                 <div className="pt-3 border-t border-[#212121]/10">
                   <p className="text-sm text-[#212121]">
                     <strong>Khuyến nghị:</strong> Hãy cân nhắc kỹ trước khi xóa vĩnh viễn

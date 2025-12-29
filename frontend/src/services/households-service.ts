@@ -30,20 +30,19 @@ export interface HouseholdListParams {
 }
 
 export interface HouseholdCreateData {
+    household_number: string;
     address: string;
-    phuong_xa?: string;
-    quan_huyen?: string;
-    tinh_thanh?: string;
-    head_id?: string;
+    ward: string;
+    head_of_household_id?: string;
     scope_id?: string;
 }
 
 export interface HouseholdUpdateData {
+    household_number?: string;
     address?: string;
-    phuong_xa?: string;
-    quan_huyen?: string;
-    tinh_thanh?: string;
-    head_id?: string;
+    ward?: string;
+    head_of_household_id?: string;
+    scope_id?: string;
 }
 
 export const householdsService = {

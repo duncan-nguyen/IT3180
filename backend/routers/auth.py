@@ -1,6 +1,19 @@
 from datetime import timedelta
 from typing import Annotated
 
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    status,
+)
+from fastapi.encoders import jsonable_encoder
+from fastapi.security.oauth2 import OAuth2PasswordRequestForm
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from core.auth_bearer import JWTBearer, JWTBearerMe
 from core.config import ACCESS_TOKEN_EXPIRES, REFRESH_TOKEN_EXPIRES
 from core.security import (
@@ -12,16 +25,6 @@ from core.security import (
 )
 from core.utils import hash_pw
 from database import get_db
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    HTTPException,
-    status,
-)
-from fastapi.encoders import jsonable_encoder
-from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from models import User
 from schemas.auth import (
     AccessTokenResponse,
@@ -36,8 +39,6 @@ from schemas.auth import (
     UserUpdateForm,
     ValidateRequest,
 )
-from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -143,6 +144,32 @@ async def get_users(
                 )
             )
         return li
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
+
+
+@router.get("/users/{id}", response_model=UserInfor, status_code=200)
+async def get_user_by_id(
+    id: str,
+    user_data: UserInfor = Depends(JWTBearer([UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a single user by ID"""
+    try:
+        query = select(User).where(User.id == id)
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return UserInfor(
+            id=user.id,
+            username=user.username,
+            role=user.role,
+            active=bool(user.active),
+            scope_id=str(user.scope_id) if user.scope_id else "",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{str(e)}")
 

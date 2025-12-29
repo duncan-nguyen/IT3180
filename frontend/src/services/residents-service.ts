@@ -5,12 +5,14 @@ export interface Resident {
     full_name: string;
     date_of_birth: string;
     cccd_number: string;
-    gender?: string;
-    phone_number?: string;
-    ethnic?: string;
-    religion?: string;
+    place_of_birth?: string;
+    hometown?: string;
+    ethnicity?: string;
     occupation?: string;
-    education_level?: string;
+    workplace?: string;
+    cccd_issue_date?: string;
+    cccd_issue_place?: string;
+    residence_registration_date?: string;
     relationship_to_head?: string;
     household_id?: string;
     household?: {
@@ -23,28 +25,32 @@ export interface ResidentCreateData {
     full_name: string;
     date_of_birth: string;
     cccd_number: string;
-    gender?: string;
-    phone_number?: string;
-    ethnic?: string;
-    religion?: string;
+    household_id: string;
+    place_of_birth?: string;
+    hometown?: string;
+    ethnicity?: string;
     occupation?: string;
-    education_level?: string;
+    workplace?: string;
+    cccd_issue_date?: string;
+    cccd_issue_place?: string;
+    residence_registration_date?: string;
     relationship_to_head?: string;
-    household_id?: string;
 }
 
 export interface ResidentUpdateData {
     full_name?: string;
     date_of_birth?: string;
     cccd_number?: string;
-    gender?: string;
-    phone_number?: string;
-    ethnic?: string;
-    religion?: string;
-    occupation?: string;
-    education_level?: string;
-    relationship_to_head?: string;
     household_id?: string;
+    place_of_birth?: string;
+    hometown?: string;
+    ethnicity?: string;
+    occupation?: string;
+    workplace?: string;
+    cccd_issue_date?: string;
+    cccd_issue_place?: string;
+    residence_registration_date?: string;
+    relationship_to_head?: string;
 }
 
 export interface ResidentListParams {

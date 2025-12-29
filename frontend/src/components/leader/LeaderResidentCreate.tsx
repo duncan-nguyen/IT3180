@@ -1,6 +1,7 @@
-import { AlertCircle, ArrowLeft, Loader2, Save, User } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, ArrowLeft, Briefcase, Home, Loader2, MapPin, Save, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Household, householdsService } from '../../services/households-service';
 import { residentsService } from '../../services/residents-service';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -17,25 +18,51 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loadingHouseholds, setLoadingHouseholds] = useState(true);
 
-  // Form state
-  const [fullName, setFullName] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [cccdNumber, setCccdNumber] = useState('');
-  const [gender, setGender] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [ethnic, setEthnic] = useState('');
-  const [religion, setReligion] = useState('');
-  const [occupation, setOccupation] = useState('');
-  const [educationLevel, setEducationLevel] = useState('');
-  const [relationshipToHead, setRelationshipToHead] = useState('');
-  const [householdId, setHouseholdId] = useState('');
+  // Form state - matching backend schema
+  const [formData, setFormData] = useState({
+    full_name: '',
+    date_of_birth: '',
+    cccd_number: '',
+    household_id: '',
+    place_of_birth: '',
+    hometown: '',
+    ethnicity: '',
+    occupation: '',
+    workplace: '',
+    cccd_issue_date: '',
+    cccd_issue_place: '',
+    residence_registration_date: '',
+    relationship_to_head: '',
+  });
+
+  useEffect(() => {
+    loadHouseholds();
+  }, []);
+
+  const loadHouseholds = async () => {
+    try {
+      setLoadingHouseholds(true);
+      const response = await householdsService.getHouseholdsList({ limit: 100 });
+      setHouseholds(response.data);
+    } catch (err) {
+      console.error('Error loading households:', err);
+    } finally {
+      setLoadingHouseholds(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!fullName || !dateOfBirth || !cccdNumber) {
-      setError('Vui lòng điền đầy đủ các trường bắt buộc');
+    if (!formData.full_name || !formData.date_of_birth || !formData.cccd_number || !formData.household_id) {
+      setError('Vui lòng điền đầy đủ các trường bắt buộc (Họ tên, Ngày sinh, CCCD, Hộ khẩu)');
       return;
     }
 
@@ -43,25 +70,30 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
       setLoading(true);
       setError(null);
 
-      await residentsService.create({
-        full_name: fullName,
-        date_of_birth: dateOfBirth,
-        cccd_number: cccdNumber,
-        gender: gender || undefined,
-        phone_number: phoneNumber || undefined,
-        ethnic: ethnic || undefined,
-        religion: religion || undefined,
-        occupation: occupation || undefined,
-        education_level: educationLevel || undefined,
-        relationship_to_head: relationshipToHead || undefined,
-        household_id: householdId || undefined,
-      });
+      const createData: any = {
+        full_name: formData.full_name,
+        date_of_birth: formData.date_of_birth,
+        cccd_number: formData.cccd_number,
+        household_id: formData.household_id,
+      };
 
+      // Add optional fields only if they have values
+      if (formData.place_of_birth) createData.place_of_birth = formData.place_of_birth;
+      if (formData.hometown) createData.hometown = formData.hometown;
+      if (formData.ethnicity) createData.ethnicity = formData.ethnicity;
+      if (formData.occupation) createData.occupation = formData.occupation;
+      if (formData.workplace) createData.workplace = formData.workplace;
+      if (formData.cccd_issue_date) createData.cccd_issue_date = formData.cccd_issue_date;
+      if (formData.cccd_issue_place) createData.cccd_issue_place = formData.cccd_issue_place;
+      if (formData.residence_registration_date) createData.residence_registration_date = formData.residence_registration_date;
+      if (formData.relationship_to_head) createData.relationship_to_head = formData.relationship_to_head;
+
+      await residentsService.create(createData);
       alert('Tạo nhân khẩu thành công!');
       navigate('/leader/residents');
     } catch (err: any) {
       console.error('Error creating resident:', err);
-      setError(err.response?.data?.detail?.message || 'Không thể tạo nhân khẩu');
+      setError(err.response?.data?.detail?.error?.message || err.response?.data?.detail || 'Không thể tạo nhân khẩu');
     } finally {
       setLoading(false);
     }
@@ -79,18 +111,22 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </Button>
-          <h1 className="text-[#212121] mb-3">Thêm Nhân khẩu Mới</h1>
+          <h1 className="text-[#212121] mb-3 text-2xl font-bold">Thêm Nhân khẩu Mới</h1>
+          <p className="text-[#212121]">Thêm nhân khẩu mới vào hệ thống</p>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
+          <Card className="mb-6 border-2 border-[#B71C1C]/40 bg-[#B71C1C]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#B71C1C]">{error}</p>
+            </CardContent>
+          </Card>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
+              {/* Personal Information */}
               <Card className="border-2 border-[#212121]/10 shadow-lg">
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -107,29 +143,15 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
                     </Label>
                     <Input
                       id="full-name"
-                      placeholder="VD: Nguyễn Văn An"
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange('full_name', e.target.value)}
                       className="h-12 border-2 border-[#212121]/20"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Nhập họ và tên"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="gender" className="text-[#212121]">Giới tính</Label>
-                      <Select value={gender} onValueChange={setGender}>
-                        <SelectTrigger id="gender" className="h-12 border-2 border-[#212121]/20">
-                          <SelectValue placeholder="Chọn giới tính" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Nam">Nam</SelectItem>
-                          <SelectItem value="Nữ">Nữ</SelectItem>
-                          <SelectItem value="Khác">Khác</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
                     <div className="space-y-3">
                       <Label htmlFor="birth-date" className="text-[#212121]">
                         Ngày sinh <span className="text-[#B71C1C]">*</span>
@@ -137,174 +159,276 @@ export default function LeaderResidentCreate({ onLogout }: LeaderResidentCreateP
                       <input
                         id="birth-date"
                         type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
                         className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
-                        value={dateOfBirth}
-                        onChange={(e) => setDateOfBirth(e.target.value)}
                         required
                       />
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <Label htmlFor="cccd" className="text-[#212121]">
-                        Số CCCD/CMND <span className="text-[#B71C1C]">*</span>
+                      <Label htmlFor="ethnicity" className="text-[#212121]">
+                        Dân tộc
                       </Label>
                       <Input
-                        id="cccd"
-                        placeholder="VD: 001088012345"
+                        id="ethnicity"
+                        value={formData.ethnicity}
+                        onChange={(e) => handleInputChange('ethnicity', e.target.value)}
                         className="h-12 border-2 border-[#212121]/20"
-                        value={cccdNumber}
-                        onChange={(e) => setCccdNumber(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="phone" className="text-[#212121]">Số điện thoại</Label>
-                      <Input
-                        id="phone"
-                        placeholder="VD: 0912345678"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="Nhập dân tộc"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="ethnic" className="text-[#212121]">Dân tộc</Label>
-                      <Input
-                        id="ethnic"
-                        placeholder="VD: Kinh"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={ethnic}
-                        onChange={(e) => setEthnic(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="religion" className="text-[#212121]">Tôn giáo</Label>
-                      <Input
-                        id="religion"
-                        placeholder="VD: Không"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={religion}
-                        onChange={(e) => setReligion(e.target.value)}
-                      />
-                    </div>
+                  <div className="space-y-3">
+                    <Label htmlFor="cccd-number" className="text-[#212121]">
+                      Số CCCD/CMND <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Input
+                      id="cccd-number"
+                      value={formData.cccd_number}
+                      onChange={(e) => handleInputChange('cccd_number', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập số CCCD/CMND"
+                      required
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <Label htmlFor="occupation" className="text-[#212121]">Nghề nghiệp</Label>
-                      <Input
-                        id="occupation"
-                        placeholder="VD: Kỹ sư"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={occupation}
-                        onChange={(e) => setOccupation(e.target.value)}
+                      <Label htmlFor="cccd-issue-date" className="text-[#212121]">
+                        Ngày cấp CCCD
+                      </Label>
+                      <input
+                        id="cccd-issue-date"
+                        type="date"
+                        value={formData.cccd_issue_date}
+                        onChange={(e) => handleInputChange('cccd_issue_date', e.target.value)}
+                        className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
                       />
                     </div>
 
                     <div className="space-y-3">
-                      <Label htmlFor="education" className="text-[#212121]">Trình độ học vấn</Label>
+                      <Label htmlFor="cccd-issue-place" className="text-[#212121]">
+                        Nơi cấp CCCD
+                      </Label>
                       <Input
-                        id="education"
-                        placeholder="VD: Đại học"
+                        id="cccd-issue-place"
+                        value={formData.cccd_issue_place}
+                        onChange={(e) => handleInputChange('cccd_issue_place', e.target.value)}
                         className="h-12 border-2 border-[#212121]/20"
-                        value={educationLevel}
-                        onChange={(e) => setEducationLevel(e.target.value)}
+                        placeholder="Nhập nơi cấp"
                       />
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Origin Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#1B5E20]/10">
+                      <MapPin className="w-6 h-6 text-[#1B5E20]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Thông tin Quê quán</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="place-of-birth" className="text-[#212121]">
+                      Nơi sinh
+                    </Label>
+                    <Input
+                      id="place-of-birth"
+                      value={formData.place_of_birth}
+                      onChange={(e) => handleInputChange('place_of_birth', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nơi sinh"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="hometown" className="text-[#212121]">
+                      Nguyên quán
+                    </Label>
+                    <Input
+                      id="hometown"
+                      value={formData.hometown}
+                      onChange={(e) => handleInputChange('hometown', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nguyên quán"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Household Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#1B5E20]/10">
+                      <Home className="w-6 h-6 text-[#1B5E20]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Thông tin Hộ khẩu</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="household" className="text-[#212121]">
+                      Hộ khẩu <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.household_id}
+                      onValueChange={(value) => handleInputChange('household_id', value)}
+                    >
+                      <SelectTrigger id="household" className="h-12 border-2 border-[#212121]/20">
+                        <SelectValue placeholder={loadingHouseholds ? "Đang tải..." : "Chọn hộ khẩu"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {households.map((h) => (
+                          <SelectItem key={h.id} value={h.id}>
+                            {h.address}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <Label htmlFor="household" className="text-[#212121]">ID Hộ khẩu</Label>
-                      <Input
-                        id="household"
-                        placeholder="Nhập ID hộ khẩu"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={householdId}
-                        onChange={(e) => setHouseholdId(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="relationship" className="text-[#212121]">Quan hệ với chủ hộ</Label>
-                      <Select value={relationshipToHead} onValueChange={setRelationshipToHead}>
-                        <SelectTrigger id="relationship" className="h-12 border-2 border-[#212121]/20">
+                      <Label htmlFor="relation" className="text-[#212121]">
+                        Quan hệ với chủ hộ
+                      </Label>
+                      <Select 
+                        value={formData.relationship_to_head}
+                        onValueChange={(value) => handleInputChange('relationship_to_head', value)}
+                      >
+                        <SelectTrigger id="relation" className="h-12 border-2 border-[#212121]/20">
                           <SelectValue placeholder="Chọn quan hệ" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Chủ hộ">Chủ hộ</SelectItem>
-                          <SelectItem value="Vợ/Chồng">Vợ/Chồng</SelectItem>
+                          <SelectItem value="Vợ">Vợ</SelectItem>
+                          <SelectItem value="Chồng">Chồng</SelectItem>
                           <SelectItem value="Con">Con</SelectItem>
-                          <SelectItem value="Bố/Mẹ">Bố/Mẹ</SelectItem>
+                          <SelectItem value="Bố">Bố</SelectItem>
+                          <SelectItem value="Mẹ">Mẹ</SelectItem>
                           <SelectItem value="Anh/Chị/Em">Anh/Chị/Em</SelectItem>
+                          <SelectItem value="Ông/Bà">Ông/Bà</SelectItem>
+                          <SelectItem value="Cháu">Cháu</SelectItem>
                           <SelectItem value="Khác">Khác</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="registration-date" className="text-[#212121]">
+                        Ngày đăng ký thường trú
+                      </Label>
+                      <input
+                        id="registration-date"
+                        type="date"
+                        value={formData.residence_registration_date}
+                        onChange={(e) => handleInputChange('residence_registration_date', e.target.value)}
+                        className="h-12 w-full px-3 border-2 border-[#212121]/20 rounded-md"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Work Information */}
+              <Card className="border-2 border-[#212121]/10 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-[#0D47A1]/10">
+                      <Briefcase className="w-6 h-6 text-[#0D47A1]" />
+                    </div>
+                    <CardTitle className="text-[#212121]">Nghề nghiệp</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="occupation" className="text-[#212121]">
+                      Nghề nghiệp
+                    </Label>
+                    <Input
+                      id="occupation"
+                      value={formData.occupation}
+                      onChange={(e) => handleInputChange('occupation', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nghề nghiệp"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="workplace" className="text-[#212121]">
+                      Nơi làm việc
+                    </Label>
+                    <Input
+                      id="workplace"
+                      value={formData.workplace}
+                      onChange={(e) => handleInputChange('workplace', e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập nơi làm việc"
+                    />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Side Panel */}
             <div className="space-y-6">
+              {/* Action Buttons */}
               <Card className="border-2 border-[#212121]/10 shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-[#212121]">Hành động</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button
+                  <Button 
                     type="submit"
-                    disabled={loading}
                     className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                    disabled={loading}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Đang lưu...
+                        Đang tạo...
                       </>
                     ) : (
                       <>
                         <Save className="w-5 h-5 mr-2" />
-                        Lưu Nhân khẩu
+                        Tạo Nhân khẩu
                       </>
                     )}
                   </Button>
-
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => navigate('/leader/residents')}
                     className="w-full h-14 border-2 border-[#212121]/20"
+                    disabled={loading}
                   >
                     Hủy
                   </Button>
                 </CardContent>
               </Card>
 
+              {/* Notes */}
               <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
                 <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-6 h-6 text-[#0D47A1]" />
-                    <CardTitle className="text-[#212121]">Hướng dẫn</CardTitle>
-                  </div>
+                  <CardTitle className="text-[#212121] flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-[#0D47A1]" />
+                    Lưu ý
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-3 text-[#212121]">
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#0D47A1] mt-1">•</span>
-                      <span>Trường có dấu <span className="text-[#B71C1C]">*</span> là bắt buộc</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#0D47A1] mt-1">•</span>
-                      <span>Số CCCD phải duy nhất trong hệ thống</span>
-                    </li>
+                  <ul className="space-y-2 text-sm text-[#212121]">
+                    <li>• Thông tin bắt buộc được đánh dấu *</li>
+                    <li>• Nhân khẩu phải thuộc một hộ khẩu</li>
+                    <li>• Số CCCD/CMND phải là duy nhất</li>
+                    <li>• Mọi thay đổi sẽ được ghi vào nhật ký</li>
                   </ul>
                 </CardContent>
               </Card>

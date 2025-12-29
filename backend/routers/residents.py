@@ -1,8 +1,9 @@
 from datetime import date
 
-from core.auth_bearer import JWTBearer
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
+
+from core.auth_bearer import JWTBearer
 from schemas.auth import UserInfor, UserRole
 from schemas.resident import NhankhauCreate, NhankhauUpdate
 from services.resident_service import ResidentService
@@ -39,11 +40,14 @@ async def search_nhankhau(
 ):
     try:
         response = await ResidentService.search_nhankhau(q)
+        # Return full citizen data for matching in frontend
         formatted = [
             {
                 "id": item["id"],
-                "ho_ten": item["full_name"],
-                "dia_chi": item.get("household", {}).get("address"),
+                "full_name": item["full_name"],
+                "cccd_number": item.get("cccd_number"),
+                "date_of_birth": str(item.get("date_of_birth")) if item.get("date_of_birth") else None,
+                "household": item.get("household"),
             }
             for item in response.data
         ]
@@ -82,7 +86,7 @@ async def create_nhankhau(
     user_data: UserInfor = Depends(JWTBearer(accepted_role_list=COMMON_ROLES)),
 ):
     try:
-        data_dict = data.model_dump(mode="json", exclude_none=True)
+        data_dict = data.model_dump(exclude_none=True)
         response = await ResidentService.create_nhankhau(data_dict)
         return {
             "data": response.data,

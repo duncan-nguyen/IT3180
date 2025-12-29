@@ -151,7 +151,7 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
         <div className="mb-8">
           <Button
             variant="outline"
-            onClick={() => navigate('/admin/accounts')}
+            onClick={() => navigate('/admin')}
             className="h-12 mb-4 border-2 border-[#212121]/20"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
@@ -392,7 +392,7 @@ export default function AdminAccountCreate({ onLogout }: AdminAccountCreateProps
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/admin/accounts')}
+                  onClick={() => navigate('/admin')}
                   className="w-full h-14 border-2 border-[#212121]/20"
                 >
                   Hủy

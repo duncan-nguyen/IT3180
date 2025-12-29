@@ -17,17 +17,24 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
+  // Form state - matching backend schema
+  const [householdNumber, setHouseholdNumber] = useState('');
   const [address, setAddress] = useState('');
-  const [phuongXa, setPhuongXa] = useState('');
-  const [quanHuyen, setQuanHuyen] = useState('');
-  const [tinhThanh, setTinhThanh] = useState('');
+  const [ward, setWard] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!householdNumber) {
+      setError('Vui lòng nhập số hộ khẩu');
+      return;
+    }
     if (!address) {
       setError('Vui lòng nhập địa chỉ');
+      return;
+    }
+    if (!ward) {
+      setError('Vui lòng nhập phường/xã');
       return;
     }
 
@@ -36,17 +43,16 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
       setError(null);
 
       await householdsService.createHousehold({
+        household_number: householdNumber,
         address,
-        phuong_xa: phuongXa || undefined,
-        quan_huyen: quanHuyen || undefined,
-        tinh_thanh: tinhThanh || undefined,
+        ward,
       });
 
       alert('Tạo hộ khẩu thành công!');
       navigate('/leader/households');
     } catch (err: any) {
       console.error('Error creating household:', err);
-      setError(err.response?.data?.detail?.message || 'Không thể tạo hộ khẩu');
+      setError(err.response?.data?.detail?.error?.message || err.response?.data?.detail || 'Không thể tạo hộ khẩu');
     } finally {
       setLoading(false);
     }
@@ -65,7 +71,7 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
             <ArrowLeft className="w-5 h-5 mr-2" />
             Quay lại
           </Button>
-          <h1 className="text-[#212121] mb-3">
+          <h1 className="text-[#212121] mb-3 text-2xl font-bold">
             Thêm Hộ khẩu Mới
           </h1>
           <p className="text-[#212121]">
@@ -74,9 +80,11 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
+          <Card className="mb-6 border-2 border-[#B71C1C]/40 bg-[#B71C1C]/10">
+            <CardContent className="pt-4">
+              <p className="text-[#B71C1C]">{error}</p>
+            </CardContent>
+          </Card>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -97,57 +105,44 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-3">
+                    <Label htmlFor="household-number" className="text-[#212121]">
+                      Số hộ khẩu <span className="text-[#B71C1C]">*</span>
+                    </Label>
+                    <Input
+                      id="household-number"
+                      value={householdNumber}
+                      onChange={(e) => setHouseholdNumber(e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Nhập số hộ khẩu"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-3">
                     <Label htmlFor="street-address" className="text-[#212121]">
                       Số nhà, tên đường <span className="text-[#B71C1C]">*</span>
                     </Label>
                     <Input
                       id="street-address"
-                      placeholder="VD: 25 Nguyễn Trãi"
-                      className="h-12 border-2 border-[#212121]/20"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      className="h-12 border-2 border-[#212121]/20"
+                      placeholder="Ví dụ: 123 Nguyễn Trãi"
                       required
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="ward" className="text-[#212121]">
-                        Phường/Xã
-                      </Label>
-                      <Input
-                        id="ward"
-                        placeholder="VD: Phường Đống Đa"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={phuongXa}
-                        onChange={(e) => setPhuongXa(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label htmlFor="district" className="text-[#212121]">
-                        Quận/Huyện
-                      </Label>
-                      <Input
-                        id="district"
-                        placeholder="VD: Quận Đống Đa"
-                        className="h-12 border-2 border-[#212121]/20"
-                        value={quanHuyen}
-                        onChange={(e) => setQuanHuyen(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-3">
-                    <Label htmlFor="city" className="text-[#212121]">
-                      Tỉnh/Thành phố
+                    <Label htmlFor="ward" className="text-[#212121]">
+                      Phường/Xã <span className="text-[#B71C1C]">*</span>
                     </Label>
                     <Input
-                      id="city"
-                      placeholder="VD: Hà Nội"
+                      id="ward"
+                      value={ward}
+                      onChange={(e) => setWard(e.target.value)}
                       className="h-12 border-2 border-[#212121]/20"
-                      value={tinhThanh}
-                      onChange={(e) => setTinhThanh(e.target.value)}
+                      placeholder="Nhập phường/xã"
+                      required
                     />
                   </div>
                 </CardContent>
@@ -166,8 +161,8 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
                 <CardContent className="space-y-3">
                   <Button
                     type="submit"
-                    disabled={loading}
                     className="w-full h-14 bg-[#1B5E20] hover:bg-[#1B5E20]/90"
+                    disabled={loading}
                   >
                     {loading ? (
                       <>
@@ -181,42 +176,32 @@ export default function LeaderHouseholdCreate({ onLogout }: LeaderHouseholdCreat
                       </>
                     )}
                   </Button>
-
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => navigate('/leader/households')}
                     className="w-full h-14 border-2 border-[#212121]/20"
+                    disabled={loading}
                   >
                     Hủy
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Guidelines */}
+              {/* Instructions */}
               <Card className="border-2 border-[#0D47A1]/20 shadow-lg bg-[#0D47A1]/5">
                 <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-6 h-6 text-[#0D47A1]" />
-                    <CardTitle className="text-[#212121]">
-                      Hướng dẫn
-                    </CardTitle>
-                  </div>
+                  <CardTitle className="text-[#212121] flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-[#0D47A1]" />
+                    Hướng dẫn
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-3 text-[#212121]">
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#0D47A1] mt-1">•</span>
-                      <span>Kiểm tra kỹ thông tin trước khi lưu</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#0D47A1] mt-1">•</span>
-                      <span>Địa chỉ là bắt buộc</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#0D47A1] mt-1">•</span>
-                      <span>Sau khi tạo có thể thêm chủ hộ và thành viên</span>
-                    </li>
+                  <ul className="space-y-2 text-sm text-[#212121]">
+                    <li>• Kiểm tra kỹ thông tin trước khi lưu</li>
+                    <li>• Các trường có dấu * là bắt buộc</li>
+                    <li>• Số hộ khẩu phải là duy nhất</li>
+                    <li>• Sau khi tạo có thể thêm chủ hộ và thành viên</li>
                   </ul>
                 </CardContent>
               </Card>

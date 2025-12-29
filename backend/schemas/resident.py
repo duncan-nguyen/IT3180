@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
+from datetime import date
 from typing import Optional
 from uuid import UUID
-from datetime import date
+
+from pydantic import BaseModel, Field
 
 
 class NhankhauCreate(BaseModel):
@@ -14,9 +15,9 @@ class NhankhauCreate(BaseModel):
     occupation: str | None = Field(None, description='Nghề nghiệp', max_length=100)
     workplace: str | None = Field(None, description='Nơi làm việc', max_length=255)
     cccd_number: str = Field(..., description='Số CCCD', max_length=12)
-    cccd_issue_date: str | None = Field(None, description='Ngày cấp CCCD', example='2020-01-15')
+    cccd_issue_date: date | None = Field(None, description='Ngày cấp CCCD', example='2020-01-15')
     cccd_issue_place: str | None = Field(None, description='Nơi cấp CCCD', max_length=255)
-    residence_registration_date: str | None = Field(None, description='Ngày đăng ký thường trú', example='2020-01-15')
+    residence_registration_date: date | None = Field(None, description='Ngày đăng ký thường trú', example='2020-01-15')
     relationship_to_head: str | None = Field(None, description='Quan hệ với chủ hộ', max_length=50)
 
 
@@ -30,7 +31,7 @@ class NhankhauUpdate(BaseModel):
     occupation: str | None = Field(None, description='Nghề nghiệp', max_length=100)
     workplace: str | None = Field(None, description='Nơi làm việc', max_length=255)
     cccd_number: str | None = Field(None, description='Số CCCD', max_length=12)
-    cccd_issue_date: str | None = Field(None, description='Ngày cấp CCCD', example='2020-01-15')
+    cccd_issue_date: date | None = Field(None, description='Ngày cấp CCCD', example='2020-01-15')
     cccd_issue_place: str | None = Field(None, description='Nơi cấp CCCD', max_length=255)
-    residence_registration_date: str | None = Field(None, description='Ngày đăng ký thường trú', example='2020-01-15')
+    residence_registration_date: date | None = Field(None, description='Ngày đăng ký thường trú', example='2020-01-15')
     relationship_to_head: str | None = Field(None, description='Quan hệ với chủ hộ', max_length=50)
