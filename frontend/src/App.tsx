@@ -20,6 +20,7 @@ import CitizenSubmitFeedback from './components/citizen/CitizenSubmitFeedback';
 import LeaderDashboard from './components/leader/LeaderDashboard';
 import LeaderFeedback from './components/leader/LeaderFeedback';
 import LeaderFeedbackCreate from './components/leader/LeaderFeedbackCreate';
+import LeaderFeedbackDetail from './components/leader/LeaderFeedbackDetail';
 import LeaderHouseholdCreate from './components/leader/LeaderHouseholdCreate';
 import LeaderHouseholdDelete from './components/leader/LeaderHouseholdDelete';
 import LeaderHouseholdEdit from './components/leader/LeaderHouseholdEdit';
@@ -31,6 +32,8 @@ import LeaderResidentEdit from './components/leader/LeaderResidentEdit';
 import LeaderResidents from './components/leader/LeaderResidents';
 import OfficialFeedbackDetail from './components/official/OfficialFeedbackDetail';
 import OfficialFeedbackList from './components/official/OfficialFeedbackList';
+import OfficialHouseholdDetail from './components/official/OfficialHouseholdDetail';
+import OfficialHouseholds from './components/official/OfficialHouseholds';
 import OfficialReports from './components/official/OfficialReports';
 
 export type UserRole = 'citizen' | 'leader' | 'official' | 'admin' | null;
@@ -104,6 +107,9 @@ function App() {
         <Route path="/leader/feedback/create" element={
           userRole === 'leader' ? <LeaderFeedbackCreate onLogout={handleLogout} /> : <Navigate to="/" />
         } />
+        <Route path="/leader/feedback/:id" element={
+          userRole === 'leader' ? <LeaderFeedbackDetail onLogout={handleLogout} /> : <Navigate to="/" />
+        } />
         <Route path="/leader/reports" element={
           userRole === 'leader' ? <LeaderReports onLogout={handleLogout} /> : <Navigate to="/" />
         } />
@@ -114,6 +120,12 @@ function App() {
         } />
         <Route path="/official/feedback/:id" element={
           userRole === 'official' ? <OfficialFeedbackDetail onLogout={handleLogout} /> : <Navigate to="/" />
+        } />
+        <Route path="/official/households" element={
+          userRole === 'official' ? <OfficialHouseholds onLogout={handleLogout} /> : <Navigate to="/" />
+        } />
+        <Route path="/official/households/:id" element={
+          userRole === 'official' ? <OfficialHouseholdDetail onLogout={handleLogout} /> : <Navigate to="/" />
         } />
         <Route path="/official/reports" element={
           userRole === 'official' ? <OfficialReports userName={userName} onLogout={handleLogout} /> : <Navigate to="/" />

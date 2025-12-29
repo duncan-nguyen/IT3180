@@ -1,8 +1,9 @@
 import uuid
 
-from database import Base
 from sqlalchemy import UUID, Boolean, Column, ForeignKey, String
 from sqlalchemy.orm import relationship
+
+from database import Base
 
 
 class Household(Base):
@@ -17,6 +18,7 @@ class Household(Base):
     neighborhood_group_id = Column(UUID(as_uuid=True), ForeignKey("neighborhood_groups.id"), nullable=True)
     scope_id = Column(String(50))
     is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)  # Whether household has been verified by official
 
     # Relations
     head_of_household = relationship(

@@ -1,9 +1,10 @@
 from typing import Any, Dict, Optional
 
-from database import AsyncSessionLocal, DbResponse
-from models import Citizen, Household
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import joinedload, selectinload
+
+from database import AsyncSessionLocal, DbResponse
+from models import Citizen, Household
 
 
 class HouseholdService:
@@ -17,7 +18,10 @@ class HouseholdService:
         async with AsyncSessionLocal() as session:
             query = (
                 select(Household)
-                .options(joinedload(Household.head_of_household))
+                .options(
+                    joinedload(Household.head_of_household),
+                    selectinload(Household.members),
+                )
                 .filter(Household.is_active == True)
             )
 
@@ -25,11 +29,12 @@ class HouseholdService:
                 query = query.filter(Household.ward == phuong_xa)
 
             if q:
-                query = query.join(Household.head_of_household)
+                query = query.join(Household.head_of_household, isouter=True)
                 query = query.filter(
                     or_(
                         Citizen.full_name.ilike(f"%{q}%"),
                         Household.address.ilike(f"%{q}%"),
+                        Household.household_number.ilike(f"%{q}%"),
                     )
                 )
 
@@ -37,15 +42,18 @@ class HouseholdService:
             query = query.offset(offset).limit(limit)
 
             result = await session.execute(query)
-            households = result.scalars().all()
+            households = result.unique().scalars().all()
 
             data = []
             for h in households:
                 h_dict = h.as_dict()
                 if h.head_of_household:
                     h_dict["head_of_household"] = {
+                        "id": str(h.head_of_household.id),
                         "full_name": h.head_of_household.full_name
                     }
+                # Include members list for member count
+                h_dict["nhan_khau"] = [m.as_dict() for m in h.members if m.is_active]
                 data.append(h_dict)
 
             return DbResponse(data=data, count=len(data))
@@ -150,3 +158,27 @@ class HouseholdService:
             result = await session.execute(query)
             households = result.scalars().all()
             return DbResponse(data=households)
+
+    @staticmethod
+    async def verify_hokhau(id: str):
+        """Mark a household as verified"""
+        async with AsyncSessionLocal() as session:
+            stmt = update(Household).where(Household.id == id).values(is_verified=True)
+            await session.execute(stmt)
+            await session.commit()
+
+            result = await session.execute(select(Household).where(Household.id == id))
+            household = result.scalar_one()
+            return DbResponse(data=household.as_dict())
+
+    @staticmethod
+    async def unverify_hokhau(id: str):
+        """Remove verification from a household"""
+        async with AsyncSessionLocal() as session:
+            stmt = update(Household).where(Household.id == id).values(is_verified=False)
+            await session.execute(stmt)
+            await session.commit()
+
+            result = await session.execute(select(Household).where(Household.id == id))
+            household = result.scalar_one()
+            return DbResponse(data=household.as_dict())

@@ -76,5 +76,10 @@ export const feedbackService = {
     }) => {
         const response = await feedbackClient.post('/feedback', data);
         return response.data;
+    },
+
+    mergeFeedbacks: async (data: { parent_id?: string; sub_id: string[] }) => {
+        const response = await feedbackClient.post('/feedback/merge', data);
+        return response.data;
     }
 };

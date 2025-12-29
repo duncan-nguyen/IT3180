@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CheckSquare, Loader2, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Feedback, feedbackService } from '../../services/feedback-service';
@@ -24,6 +24,7 @@ export default function OfficialFeedbackDetail({ onLogout }: OfficialFeedbackDet
   const [agency, setAgency] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [markingResolved, setMarkingResolved] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -81,6 +82,26 @@ export default function OfficialFeedbackDetail({ onLogout }: OfficialFeedbackDet
     }
   };
 
+  const handleMarkResolved = async () => {
+    if (!id) return;
+    
+    if (!confirm('Bạn có chắc muốn đánh dấu kiến nghị này là "Đã giải quyết"?')) {
+      return;
+    }
+
+    try {
+      setMarkingResolved(true);
+      await feedbackService.updateFeedbackStatus(id, 'DA_GIAI_QUYET');
+      await fetchFeedbackDetail(id);
+      alert('Đã cập nhật trạng thái thành "Đã giải quyết"');
+    } catch (err: any) {
+      console.error('Error marking as resolved:', err);
+      alert('Cập nhật trạng thái thất bại: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setMarkingResolved(false);
+    }
+  };
+
   if (loading) {
     return (
       <OfficialLayout onLogout={onLogout}>
@@ -110,19 +131,42 @@ export default function OfficialFeedbackDetail({ onLogout }: OfficialFeedbackDet
     <OfficialLayout onLogout={onLogout}>
       <div className="p-6">
         {/* Header */}
-        <div className="mb-8 flex items-center gap-6">
-          <Link to="/official">
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <Link to="/official">
+              <Button
+                variant="outline"
+                className="h-14 px-6 border-2 border-[#212121]/20 hover:bg-[#F5F5F5]"
+              >
+                <ArrowLeft className="w-6 h-6 mr-3" />
+                Quay lại
+              </Button>
+            </Link>
+            <h1 className="text-[#212121]">
+              Chi tiết Kiến nghị
+            </h1>
+          </div>
+          
+          {/* Mark as Resolved Button */}
+          {feedback.status?.toUpperCase() !== 'DA_GIAI_QUYET' && (
             <Button
-              variant="outline"
-              className="h-14 px-6 border-2 border-[#212121]/20 hover:bg-[#F5F5F5]"
+              onClick={handleMarkResolved}
+              disabled={markingResolved}
+              className="h-14 px-6 bg-green-600 hover:bg-green-700 text-white"
             >
-              <ArrowLeft className="w-6 h-6 mr-3" />
-              Quay lại
+              {markingResolved ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="w-6 h-6 mr-3" />
+                  Đánh dấu đã giải quyết
+                </>
+              )}
             </Button>
-          </Link>
-          <h1 className="text-[#212121]">
-            Chi tiết Kiến nghị
-          </h1>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

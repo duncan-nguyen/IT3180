@@ -4,13 +4,19 @@ export interface Household {
     id: string;
     household_number?: string;
     address: string;
+    ward?: string;
     phuong_xa?: string;
     quan_huyen?: string;
     tinh_thanh?: string;
     head_id?: string;
     head_name?: string;
+    head_of_household?: {
+        id: string;
+        full_name: string;
+    };
     scope_id?: string;
     nhan_khau?: HouseholdMember[];
+    is_verified?: boolean;
     created_at?: string;
     updated_at?: string;
 }
@@ -50,7 +56,7 @@ export const householdsService = {
         const response = await residentsClient.get<{
             data: Household[];
             pagination: { page: number; limit: number; count: number };
-        }>('/households', { params });
+        }>('/households/', { params });
         return response.data;
     },
 
@@ -84,6 +90,16 @@ export const householdsService = {
         if (toId) params.to_id = toId;
         if (phuongId) params.phuong_id = phuongId;
         const response = await residentsClient.get<{ data: number }>('/households/count', { params });
+        return response.data.data;
+    },
+
+    async verifyHousehold(id: string) {
+        const response = await residentsClient.post<{ data: Household }>(`/households/${id}/verify`);
+        return response.data.data;
+    },
+
+    async unverifyHousehold(id: string) {
+        const response = await residentsClient.post<{ data: Household }>(`/households/${id}/unverify`);
         return response.data.data;
     }
 };

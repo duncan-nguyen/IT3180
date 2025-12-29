@@ -1,6 +1,6 @@
-import { Combine, Loader2, Plus } from 'lucide-react';
+import { Combine, Eye, Loader2, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { feedbackService } from '../../services/feedback-service';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -49,6 +49,8 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [merging, setMerging] = useState(false);
+
   useEffect(() => {
     const fetchFeedbacks = async () => {
       try {
@@ -89,10 +91,32 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
     }
   };
 
-  const handleMerge = () => {
-    if (selectedIds.length >= 2) {
-      alert(`Đã gộp ${selectedIds.length} kiến nghị thành một!`);
+  const handleMerge = async () => {
+    if (selectedIds.length < 2) return;
+    
+    // Dùng phần tử đầu tiên làm parent, các phần tử còn lại là sub
+    const [parentId, ...subIds] = selectedIds;
+    
+    try {
+      setMerging(true);
+      await feedbackService.mergeFeedbacks({
+        parent_id: parentId,
+        sub_id: subIds
+      });
+      alert(`Đã gộp ${selectedIds.length} kiến nghị thành công!`);
       setSelectedIds([]);
+      // Reload danh sách
+      const params: Record<string, string> = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      const response = await feedbackService.getAllFeedbacks(params);
+      const fbList = response.map((item: any) => item.data);
+      setFeedbacks(fbList);
+    } catch (err: any) {
+      console.error('Error merging feedbacks:', err);
+      alert('Gộp kiến nghị thất bại: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setMerging(false);
     }
   };
 
@@ -134,11 +158,15 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
 
                   <Button
                     onClick={handleMerge}
-                    disabled={selectedIds.length < 2}
+                    disabled={selectedIds.length < 2 || merging}
                     className="h-14 px-6 bg-[#0D47A1] hover:bg-[#0D47A1]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Combine className="w-6 h-6 mr-3" />
-                    Gộp các mục đã chọn ({selectedIds.length})
+                    {merging ? (
+                      <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                    ) : (
+                      <Combine className="w-6 h-6 mr-3" />
+                    )}
+                    {merging ? 'Đang gộp...' : `Gộp các mục đã chọn (${selectedIds.length})`}
                   </Button>
                 </div>
 
@@ -211,6 +239,7 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                     <TableHead className="text-[#212121] h-14">Người phản ánh</TableHead>
                     <TableHead className="text-[#212121] h-14">Trạng thái</TableHead>
                     <TableHead className="text-[#212121] h-14">Ngày gửi</TableHead>
+                    <TableHead className="text-[#212121] h-14 text-center">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -239,6 +268,18 @@ export default function LeaderFeedback({ onLogout }: LeaderFeedbackProps) {
                       </TableCell>
                       <TableCell className="text-[#212121] h-16">
                         {formatDate(feedback.created_at)}
+                      </TableCell>
+                      <TableCell className="h-16 text-center">
+                        <Link to={`/leader/feedback/${feedback.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-[#0D47A1] text-[#0D47A1] hover:bg-[#0D47A1]/10"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Chi tiết
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}
