@@ -120,19 +120,6 @@ export default function Login({ onLogin }: LoginProps) {
               Quên mật khẩu?
             </a>
           </div>
-
-          {/* Demo Helper */}
-          <div className="mt-8 p-4 bg-[#F5F5F5] rounded-lg">
-            <p className="text-sm text-[#212121] mb-2">
-              <strong>Demo:</strong> Nhập tên đăng nhập chứa:
-            </p>
-            <ul className="text-sm text-[#212121] space-y-1">
-              <li>• "dan" hoặc "citizen" → Vai trò Người dân</li>
-              <li>• "truong" hoặc "leader" → Vai trò Tổ trưởng</li>
-              <li>• "canbo" hoặc "official" → Vai trò Cán bộ</li>
-              <li>• "admin" → Vai trò Quản trị viên</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>
