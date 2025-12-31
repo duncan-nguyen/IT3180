@@ -66,7 +66,7 @@ export const householdsService = {
     },
 
     async createHousehold(data: HouseholdCreateData) {
-        const response = await residentsClient.post<{ data: Household }>('/households', data);
+        const response = await residentsClient.post<{ data: Household }>('/households/', data);
         return response.data.data;
     },
 

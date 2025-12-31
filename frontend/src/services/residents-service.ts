@@ -81,7 +81,7 @@ export const residentsService = {
     },
 
     async create(data: ResidentCreateData) {
-        const response = await residentsClient.post<{ data: Resident }>('/residents', data);
+        const response = await residentsClient.post<{ data: Resident }>('/residents/', data);
         return response.data.data;
     },
 

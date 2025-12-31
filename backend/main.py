@@ -3,13 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, feedback, households, logs, residents, roles, statistics
 
-app = FastAPI(title="Citizen Management API")
+# redirect_slashes=False prevents 307 redirects for POST/PUT/DELETE requests
+# when trailing slash is missing (e.g., /households vs /households/)
+app = FastAPI(title="Citizen Management API", redirect_slashes=False)
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

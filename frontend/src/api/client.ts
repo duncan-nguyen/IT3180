@@ -1,10 +1,12 @@
 import axios from 'axios';
 
-// Base URL configuration - unified backend service
-// All services are now consolidated into a single backend on port 8000
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// IMPORTANT:
+// - Use relative base URL by default so the app works from other machines on the same LAN.
+// - In dev, Vite proxies `/api/v1` to the backend.
+// - In prod, set `VITE_API_BASE_URL` if the backend is hosted elsewhere.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
-// For backward compatibility, all clients point to the same backend
+// All clients point to the same backend base URL
 const AUTH_URL = API_BASE_URL;
 const RESIDENTS_URL = API_BASE_URL;
 const FEEDBACK_URL = API_BASE_URL;
