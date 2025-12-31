@@ -64,7 +64,7 @@ export const residentsService = {
         const response = await residentsClient.get<{
             data: Resident[];
             pagination: { total: number; page: number; limit: number };
-        }>('/residents', { params });
+        }>('/residents/', { params });
         return response.data;
     },
 
